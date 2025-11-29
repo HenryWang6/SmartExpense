@@ -3,17 +3,20 @@
 ## User Review Required
 
 > [!NOTE]
-> This is a placeholder plan. We will update this section when we start working on specific features.
+> This plan covers the refinement of `.gitignore` to include more comprehensive rules for iOS/macOS development.
 
 ## Proposed Changes
 
-### Documentation
-#### [NEW] [task.md](artifacts/task.md)
+### Configuration
+#### [MODIFY] [.gitignore](file:///Users/henry/Project/SmartExpense/.gitignore)
+- Add comprehensive macOS system files (._*, .AppleDouble, etc.)
+- Add more Xcode specific ignores (Playgrounds, xcresults)
+- Add editor specific ignores (.vscode, .idea)
+- Add OS generated files
 
 ## Verification Plan
 
-### Automated Tests
-- None yet.
-
 ### Manual Verification
-- Review the task list to ensure it covers the MVP requirements.
+- Run `git status` to ensure no ignored files are showing up.
+- Verify `artifacts/` and `.antigravity/` are NOT ignored (as they seem to be part of the project workflow).
+

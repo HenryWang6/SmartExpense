@@ -4,6 +4,8 @@ build/
 DerivedData/
 *.xccheckout
 *.xcscmblueprint
+*.xcresult
+*.playground
 
 # User-specific Xcode files
 xcuserdata/
@@ -14,14 +16,14 @@ Packages/
 Package.pins
 Package.resolved
 
-# CocoaPods (not currently used, but ignore if added later)
+# CocoaPods
 Pods/
 *.mode1v3
 *.mode2v3
 *.pbxuser
 *.perspectivev3
 
-# Carthage (not currently used, but ignore if added later)
+# Carthage
 Carthage/Build/
 
 # Fastlane
@@ -37,9 +39,21 @@ fastlane/test_output
 
 # macOS / general
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
 *.swp
 *.lock
 *.tmp
 *.log
+*.stackdump
+
+# Editors
+.vscode/
+.idea/
+*.sublime-workspace
+
 
 
