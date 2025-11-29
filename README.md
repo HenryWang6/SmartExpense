@@ -71,10 +71,17 @@ The app uses an MVVM architecture with feature-based folders.
 ```
 SmartExpense/
 ├── App/              # App entry point and configuration
+│   └── SmartExpenseApp.swift
 ├── Features/         # Feature modules
-├── Core/             # Core utilities and shared code
-├── Resources/        # Assets, strings, fonts
-└── Supporting Files/ # Configuration files
+│   └── Home/         # Home feature (dashboard with KPIs)
+│       ├── Models/   # HomeSummary
+│       ├── Views/    # HomeView, HomeKPICardView
+│       ├── ViewModels/ # HomeViewModel
+│       └── Services/ # HomeOverviewServiceProtocol, HomeOverviewMockService
+├── SmartExpense/     # Main app target files
+│   ├── ContentView.swift # History tab placeholder
+│   └── Persistence.swift  # CoreData persistence controller
+└── SmartExpenseTests/ # Unit tests
 ```
 
 ## ✨ Features
@@ -89,6 +96,7 @@ SmartExpense/
   - Top Merchant
   - Top Category
 - Backed by a `HomeViewModel` which loads a `HomeSummary` via `HomeOverviewServiceProtocol`.
+- Currently uses `HomeOverviewMockService` for mock data until persistence layer is fully integrated.
 - Source layout:
   - `App/SmartExpenseApp.swift` – SwiftUI app entry and tab bar.
   - `Features/Home/Models/` – Home-specific models such as `HomeSummary`.
@@ -96,15 +104,28 @@ SmartExpense/
   - `Features/Home/Views/` – `HomeView`, `HomeKPICardView`.
   - `Features/Home/Services/` – `HomeOverviewServiceProtocol`, `HomeOverviewMockService`.
 
+### History (Expense Management)
+
+- Placeholder tab for expense/receipt list and management.
+- Currently shows a basic CoreData-backed list view (`ContentView.swift`).
+- Will be expanded to show receipts and voice expenses with full CRUD operations.
+
+### Settings
+
+- Placeholder tab for app settings and preferences.
+- To be implemented with category management, preferences, and app info.
+
 ## 📦 Dependencies
 
 ### Current Dependencies
 
-_This section will be updated as dependencies are added._
+| Framework/Technology | Version | Purpose |
+|---------------------|---------|---------|
+| CoreData | iOS 14.0+ | Local data persistence for expenses and receipts |
+| SwiftUI | iOS 14.0+ | Modern declarative UI framework |
+| Foundation | iOS 14.0+ | Core Swift framework |
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| - | - | - |
+**Note:** The app currently uses only Apple's built-in frameworks. No third-party dependencies are required.
 
 ### Adding Dependencies
 
@@ -122,6 +143,21 @@ _This section will be updated as dependencies are added._
 
 - Follow Apple's Swift API Design Guidelines
 - See [.cursorrules](.cursorrules) for detailed development guidelines
+
+### Design Guidelines
+
+The app follows a **liquid glass morphism** design aesthetic:
+
+- **Visual Style**: Frosted glass effects using SwiftUI's `.ultraThinMaterial` and `.regularMaterial`
+- **Color Restrictions**: 
+  - ❌ **Forbidden colors**: Blue, Purple, Cyan, Turquoise
+  - ❌ **No gradients** in color schemes
+  - ✅ **Preferred**: Warm grays, soft whites, subtle greens, muted oranges, earth tones
+- **Background**: Warm neutral solid backgrounds (no gradients)
+- **Effects**: Subtle shadows, rounded corners, blur effects for depth
+- **Animations**: Smooth, fluid transitions using SwiftUI animations
+
+**Note**: Some UI components may currently use restricted colors (blue, purple) or gradients. These should be updated to comply with the design guidelines.
 
 ### Git Workflow
 
@@ -154,7 +190,11 @@ Cmd + U
 
 ### Test Coverage
 
-_Current test coverage will be tracked here._
+- **HomeViewModel**: Unit tests for loading and formatting summary data
+- Test target: `SmartExpenseTests`
+- Test file: `HomeViewModelTests.swift`
+
+**Note**: Test coverage will be expanded as features are added.
 
 ## 🚢 Deployment
 

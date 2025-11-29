@@ -9,10 +9,13 @@ Current top-level layout:
 ```
 SmartExpense/
 ├── App/              # App entry point and configuration
+│   └── SmartExpenseApp.swift
 ├── Features/         # Feature modules (Home, History, Settings, etc.)
-├── Core/             # Shared services, storage, networking (future)
-├── Resources/        # Assets, strings, fonts
-└── Supporting Files/ # Config and metadata
+│   └── Home/         # Home feature (dashboard)
+├── SmartExpense/     # Main app target
+│   ├── ContentView.swift # History tab placeholder
+│   └── Persistence.swift  # CoreData persistence controller
+└── SmartExpenseTests/ # Unit tests
 ```
 
 ### Home Feature
@@ -32,23 +35,43 @@ The Home feature presents a dashboard with KPIs based on the locally stored rece
 - `Features/Home/Views/`:
   - `HomeView`: SwiftUI screen that binds to `HomeViewModel` and renders:
     - A greeting and short description.
-    - A period capsule for the current range (e.g., “This Month”) with a refresh action.
+    - A period capsule for the current range (e.g., "This Month") with a refresh action.
     - Horizontally scrollable KPI cards for:
       - Total Spend
       - Average Daily Spend
       - Top Merchant
       - Top Category
-    - A floating glass “+” capture button (currently stubbed for future capture flows).
+    - A floating glass "+" capture button (currently stubbed for future capture flows).
   - `HomeKPICardView`: Reusable glassmorphism card for showing a KPI value and subtitle.
 
 ### App Entry and Navigation
 
 - `App/SmartExpenseApp.swift`:
   - Defines the SwiftUI app entry (`@main`).
+  - Sets up CoreData persistence controller and injects managed object context into the environment.
   - Hosts a `TabView` with:
     - `HomeView` as the default tab, instantiated with a `HomeViewModel` using `HomeOverviewMockService`.
-    - Placeholder tabs for History and Settings.
+    - `ContentView` as the History tab (placeholder for expense/receipt management).
+    - Placeholder Settings tab.
   - This is where dependency injection starts for the Home feature (wiring the service implementation).
+
+### History Feature (Placeholder)
+
+- `SmartExpense/ContentView.swift`:
+  - Currently a placeholder implementation for the History tab.
+  - Uses CoreData to display a list of `Item` entities (temporary data model).
+  - Shows empty state when no items exist.
+  - Includes basic CRUD operations (add, delete) for testing CoreData integration.
+  - Will be replaced with a proper expense/receipt management feature in the future.
+
+### Data Persistence
+
+- `SmartExpense/Persistence.swift`:
+  - Provides `PersistenceController` singleton for CoreData management.
+  - Sets up `NSPersistentContainer` with the "SmartExpense" data model.
+  - Supports both in-memory (for previews/testing) and persistent storage.
+  - Currently uses a basic CoreData model (`SmartExpense.xcdatamodeld`).
+  - The data model will be expanded to include proper entities for receipts, expenses, categories, and merchants.
 
 ### Data Flow (Home)
 
@@ -66,22 +89,50 @@ The Home feature presents a dashboard with KPIs based on the locally stored rece
 
 ### Visual Design Considerations
 
-- Home uses a liquid glass style:
+- **Liquid Glass Morphism Design**:
   - Warm neutral solid background (no gradients, no blue, purple, cyan, or turquoise).
-  - Foreground cards use SwiftUI’s `.ultraThinMaterial` for frosted glass effects.
+  - Foreground cards use SwiftUI's `.ultraThinMaterial` and `.regularMaterial` for frosted glass effects.
   - Subtle shadows and rounded corners create depth.
-- Accessibility:
+  - Smooth, fluid animations using SwiftUI's animation system.
+  
+- **Color Guidelines**:
+  - ❌ **Strictly forbidden**: Blue, Purple, Cyan, Turquoise
+  - ❌ **No gradients** in color schemes
+  - ✅ **Preferred**: Warm grays, soft whites, subtle greens, muted oranges, earth tones
+  
+- **Accessibility**:
   - Dynamic Type-friendly typography.
   - Careful use of contrast; relying on system label colors over materials where possible.
+  - Accessibility labels added to interactive elements.
+
+**Note**: Some UI components (particularly KPI cards in `HomeView`) currently use restricted colors (blue, purple) or gradients. These should be updated to comply with the design guidelines.
 
 ### Future Integration Points
 
-- Replace `HomeOverviewMockService` with a concrete implementation that aggregates data from:
-  - Local storage (Core Data or similar) for receipts/voice expenses.
-  - Category and merchant metadata.
-- Extend the Home feature with:
-  - Time-range filters.
-  - Source filters (Receipts vs Voice).
+- **Data Layer**:
+  - Replace `HomeOverviewMockService` with a concrete implementation that aggregates data from:
+    - CoreData storage for receipts/voice expenses.
+    - Category and merchant metadata.
+  - Expand CoreData model to include proper entities:
+    - `Receipt` (merchant, date, total, items, source type)
+    - `ReceiptItem` (description, quantity, price, category)
+    - `Category` (name, type)
+    - `MerchantProfile` (name, default category)
+  
+- **Home Feature Enhancements**:
+  - Time-range filters (This Week, Last Month, Custom range).
+  - Source filters (Receipts vs Voice vs All).
   - Navigation into detailed Insights and History screens when cards are tapped.
-
+  - Charts and visualizations (line charts, pie charts, bar charts).
+  
+- **History Feature**:
+  - Replace placeholder `ContentView` with proper expense/receipt management.
+  - Implement receipt detail view with image viewing.
+  - Add search and filtering capabilities.
+  - Implement swipe actions for edit/delete.
+  
+- **Capture Flow**:
+  - Receipt scanning with OCR (Vision framework).
+  - Voice expense capture with speech recognition.
+  - Receipt detail editing screen.
 
