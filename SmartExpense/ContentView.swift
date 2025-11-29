@@ -12,9 +12,9 @@ struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
 
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
+        sortDescriptors: [NSSortDescriptor(keyPath: \Receipt.date, ascending: false)],
         animation: .default)
-    private var items: FetchedResults<Item>
+    private var receipts: FetchedResults<Receipt>
 
     var body: some View {
         NavigationView {
@@ -30,15 +30,15 @@ struct ContentView: View {
                 )
                 .ignoresSafeArea()
                 
-                if items.isEmpty {
+                if receipts.isEmpty {
                     emptyStateView
                 } else {
                     List {
-                        ForEach(items) { item in
+                        ForEach(receipts) { receipt in
                             NavigationLink {
-                                expenseDetailView(item: item)
+                                expenseDetailView(receipt: receipt)
                             } label: {
-                                ExpenseRowView(item: item)
+                                ExpenseRowView(receipt: receipt)
                             }
                             .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
                             .listRowBackground(
@@ -46,7 +46,7 @@ struct ContentView: View {
                                     .fill(.ultraThinMaterial)
                             )
                         }
-                        .onDelete(perform: deleteItems)
+                        .onDelete(perform: deleteReceipts)
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
@@ -56,13 +56,13 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    if !items.isEmpty {
+                    if !receipts.isEmpty {
                         EditButton()
                             .foregroundColor(.accentColor)
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: addItem) {
+                    Button(action: addReceipt) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(.accentColor)
@@ -90,9 +90,28 @@ struct ContentView: View {
         }
     }
     
-    private func expenseDetailView(item: Item) -> some View {
+    private func expenseDetailView(receipt: Receipt) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                // Merchant
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Merchant")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    
+                    Text(receipt.merchantName ?? "Unknown Merchant")
+                        .font(.system(size: 20, weight: .semibold))
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+                
+                // Date & Time
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Date & Time")
                         .font(.system(size: 13, weight: .medium))
@@ -100,8 +119,27 @@ struct ContentView: View {
                         .textCase(.uppercase)
                         .tracking(0.5)
                     
-                    Text(item.timestamp!, formatter: itemFormatter)
+                    Text(receipt.date ?? Date(), formatter: dateFormatter)
                         .font(.system(size: 20, weight: .semibold))
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+                
+                // Total Amount
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Total Amount")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    
+                    Text("$\(receipt.totalAmount, specifier: "%.2f")")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.accentColor)
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -116,31 +154,32 @@ struct ContentView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func addItem() {
+    private func addReceipt() {
         withAnimation {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
+            let newReceipt = Receipt(context: viewContext)
+            newReceipt.id = UUID()
+            newReceipt.merchantName = "Sample Merchant"
+            newReceipt.date = Date()
+            newReceipt.totalAmount = Double.random(in: 10...100)
+            newReceipt.isVoiceInput = false
+            newReceipt.createdAt = Date()
 
             do {
                 try viewContext.save()
             } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
                 let nsError = error as NSError
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
             }
         }
     }
 
-    private func deleteItems(offsets: IndexSet) {
+    private func deleteReceipts(offsets: IndexSet) {
         withAnimation {
-            offsets.map { items[$0] }.forEach(viewContext.delete)
+            offsets.map { receipts[$0] }.forEach(viewContext.delete)
 
             do {
                 try viewContext.save()
             } catch {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
                 let nsError = error as NSError
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
             }
@@ -148,7 +187,7 @@ struct ContentView: View {
     }
 }
 
-private let itemFormatter: DateFormatter = {
+private let dateFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.dateStyle = .medium
     formatter.timeStyle = .short
@@ -156,7 +195,7 @@ private let itemFormatter: DateFormatter = {
 }()
 
 struct ExpenseRowView: View {
-    let item: Item
+    let receipt: Receipt
     
     var body: some View {
         HStack(spacing: 16) {
@@ -166,23 +205,27 @@ struct ExpenseRowView: View {
                     .fill(Color.accentColor.opacity(0.15))
                     .frame(width: 44, height: 44)
                 
-                Image(systemName: "receipt")
+                Image(systemName: receipt.isVoiceInput ? "mic.fill" : "receipt")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.accentColor)
             }
             
             // Content
             VStack(alignment: .leading, spacing: 4) {
-                Text("Expense")
+                Text(receipt.merchantName ?? "Unknown Merchant")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.primary)
                 
-                Text(item.timestamp!, formatter: itemFormatter)
+                Text(receipt.date ?? Date(), formatter: dateFormatter)
                     .font(.system(size: 14, weight: .regular))
                     .foregroundColor(.secondary)
             }
             
             Spacer()
+            
+            Text("$\(receipt.totalAmount, specifier: "%.2f")")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.accentColor)
             
             Image(systemName: "chevron.right")
                 .font(.system(size: 14, weight: .semibold))

@@ -10,7 +10,9 @@ final class HomeViewModelTests: XCTestCase {
         formatter.numberStyle = .currency
         formatter.currencyCode = "USD"
 
-        let viewModel = HomeViewModel(service: service, currencyFormatter: formatter)
+        let viewModel = await MainActor.run {
+            HomeViewModel(service: service, currencyFormatter: formatter)
+        }
 
         await MainActor.run {
             viewModel.refresh()
