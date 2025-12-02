@@ -15,6 +15,9 @@ struct ContentView: View {
         sortDescriptors: [NSSortDescriptor(keyPath: \Receipt.date, ascending: false)],
         animation: .default)
     private var receipts: FetchedResults<Receipt>
+    
+    @State private var showingCaptureFlow = false
+
 
     var body: some View {
         NavigationView {
@@ -62,12 +65,15 @@ struct ContentView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: addReceipt) {
+                    Button(action: { showingCaptureFlow = true }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(.accentColor)
                     }
                 }
+            }
+            .fullScreenCover(isPresented: $showingCaptureFlow) {
+                CaptureCoordinatorView()
             }
         }
     }
@@ -154,24 +160,6 @@ struct ContentView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func addReceipt() {
-        withAnimation {
-            let newReceipt = Receipt(context: viewContext)
-            newReceipt.id = UUID()
-            newReceipt.merchantName = "Sample Merchant"
-            newReceipt.date = Date()
-            newReceipt.totalAmount = Double.random(in: 10...100)
-            newReceipt.isVoiceInput = false
-            newReceipt.createdAt = Date()
-
-            do {
-                try viewContext.save()
-            } catch {
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
-        }
-    }
 
     private func deleteReceipts(offsets: IndexSet) {
         withAnimation {

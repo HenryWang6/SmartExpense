@@ -29,9 +29,9 @@ struct PersistenceController {
             if i % 2 == 0 {
                 let item = ReceiptItem(context: viewContext)
                 item.id = UUID()
-                item.name = "Sample Item \(i)"
-                item.price = Double.random(in: 5...50)
-                item.quantity = Int16.random(in: 1...5)
+                item.itemDescription = "Sample Item \(i)"
+                item.unitPrice = Double.random(in: 5...50)
+                item.quantity = Double(Int16.random(in: 1...5))
                 item.receipt = receipt
             }
         }

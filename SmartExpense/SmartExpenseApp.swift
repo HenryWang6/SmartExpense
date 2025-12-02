@@ -46,3 +46,8 @@ struct RootTabView: View {
         .tint(.accentColor)
     }
 }
+
+#Preview {
+    RootTabView()
+        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+}

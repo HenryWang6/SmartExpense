@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HomeView: View {
     @ObservedObject var viewModel: HomeViewModel
+    @State private var showingCaptureFlow = false
+
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -139,7 +141,7 @@ struct HomeView: View {
 
     private var captureButton: some View {
         Button(action: {
-            // TODO: Wire into capture flow when available.
+            showingCaptureFlow = true
         }) {
             ZStack {
                 Circle()
@@ -165,6 +167,9 @@ struct HomeView: View {
         .accessibilityLabel("Capture expense")
         .scaleEffect(1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: false)
+        .fullScreenCover(isPresented: $showingCaptureFlow) {
+            CaptureCoordinatorView()
+        }
     }
 
     private func greeting(date: Date = Date()) -> String {
@@ -245,4 +250,6 @@ struct HomeKPICardView: View {
     }
 }
 
-
+#Preview {
+    HomeView(viewModel: HomeViewModel(service: HomeOverviewMockService()))
+}
