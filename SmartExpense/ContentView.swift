@@ -39,7 +39,7 @@ struct ContentView: View {
                     List {
                         ForEach(receipts) { receipt in
                             NavigationLink {
-                                expenseDetailView(receipt: receipt)
+                                ExpenseDetailView(receipt: receipt)
                             } label: {
                                 ExpenseRowView(receipt: receipt)
                             }
@@ -96,69 +96,7 @@ struct ContentView: View {
         }
     }
     
-    private func expenseDetailView(receipt: Receipt) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Merchant
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Merchant")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                    
-                    Text(receipt.merchantName ?? "Unknown Merchant")
-                        .font(.system(size: 20, weight: .semibold))
-                }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                )
-                
-                // Date & Time
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Date & Time")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                    
-                    Text(receipt.date ?? Date(), formatter: dateFormatter)
-                        .font(.system(size: 20, weight: .semibold))
-                }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                )
-                
-                // Total Amount
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Total Amount")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                    
-                    Text("$\(receipt.totalAmount, specifier: "%.2f")")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(.accentColor)
-                }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                )
-            }
-            .padding()
-        }
-        .navigationTitle("Expense Details")
-        .navigationBarTitleDisplayMode(.inline)
-    }
+
 
 
     private func deleteReceipts(offsets: IndexSet) {
