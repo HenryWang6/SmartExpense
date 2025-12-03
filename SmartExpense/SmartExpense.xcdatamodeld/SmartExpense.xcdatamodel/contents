@@ -7,6 +7,7 @@
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="imagePath" optional="YES" attributeType="String"/>
         <attribute name="isVoiceInput" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="captureMethod" optional="YES" attributeType="String"/>
         <attribute name="merchantName" optional="YES" attributeType="String"/>
         <attribute name="merchantCategory" optional="YES" attributeType="String"/>
         <attribute name="totalAmount" optional="YES" attributeType="Double" usesScalarValueType="YES"/>

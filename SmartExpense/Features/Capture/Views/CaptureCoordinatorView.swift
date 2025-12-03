@@ -17,6 +17,7 @@ struct CaptureCoordinatorView: View {
     @State private var extractedData: ExtractedReceiptData?
     @State private var voiceTranscription: String = ""
     @State private var showCameraUnavailableAlert = false
+    @State private var captureMethod: String = "manual"
     
     enum CaptureState {
         case menu
@@ -68,6 +69,7 @@ struct CaptureCoordinatorView: View {
                     viewModel: ReceiptEditViewModel(
                         extractedData: extractedData,
                         image: selectedImage,
+                        captureMethod: captureMethod,
                         viewContext: viewContext
                     )
                 )
@@ -129,10 +131,13 @@ struct CaptureCoordinatorView: View {
     private func handleOptionSelected(_ option: CaptureOption) {
         switch option {
         case .camera:
+            captureMethod = "camera"
             checkCameraPermissionAndProceed()
         case .voice:
+            captureMethod = "voice"
             captureState = .voiceRecording
         case .manual:
+            captureMethod = "manual"
             // For now, go directly to receipt edit with empty data
             captureState = .receiptEdit
         }

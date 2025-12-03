@@ -18,6 +18,7 @@ class ReceiptEditViewModel: ObservableObject {
     @Published var items: [EditableLineItem]
     @Published var imagePath: String?
     @Published var isVoiceInput: Bool
+    @Published var captureMethod: String
     
     @Published var showingError = false
     @Published var errorMessage = ""
@@ -29,11 +30,23 @@ class ReceiptEditViewModel: ObservableObject {
         extractedData: ExtractedReceiptData? = nil,
         image: UIImage? = nil,
         isVoiceInput: Bool = false,
+        captureMethod: String? = nil,
         viewContext: NSManagedObjectContext
     ) {
         self.viewContext = viewContext
         self.receiptImage = image
         self.isVoiceInput = isVoiceInput
+        
+        // Determine capture method
+        if let method = captureMethod {
+            self.captureMethod = method
+        } else if isVoiceInput {
+            self.captureMethod = "voice"
+        } else if image != nil {
+            self.captureMethod = "camera"
+        } else {
+            self.captureMethod = "manual"
+        }
         
         // Initialize from extracted data or defaults
         self.merchantName = extractedData?.merchantName ?? ""
@@ -105,6 +118,7 @@ class ReceiptEditViewModel: ObservableObject {
         receipt.totalAmount = Double(totalAmount) ?? 0
         receipt.imagePath = savedImagePath
         receipt.isVoiceInput = isVoiceInput
+        receipt.captureMethod = captureMethod
         receipt.createdAt = Date()
         receipt.updatedAt = Date()
         

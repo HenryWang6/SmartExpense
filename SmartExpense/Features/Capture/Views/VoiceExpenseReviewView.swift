@@ -221,6 +221,7 @@ struct VoiceExpenseReviewView: View {
         receipt.date = date
         receipt.totalAmount = amount
         receipt.isVoiceInput = true
+        receipt.captureMethod = "voice"
         receipt.createdAt = Date()
         receipt.updatedAt = Date()
         
