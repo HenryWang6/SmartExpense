@@ -72,21 +72,31 @@ The app uses an MVVM architecture with feature-based folders.
 SmartExpense/
 ├── App/              # App entry point and configuration
 │   └── SmartExpenseApp.swift
+├── Core/             # Core infrastructure
+│   └── Data/         # Data persistence layer
+│       └── Persistence.swift  # CoreData persistence controller
 ├── Features/         # Feature modules
+│   ├── Capture/      # Receipt and voice expense capture
+│   │   ├── Models/   # CaptureOption, ExtractedReceiptData
+│   │   ├── Services/ # OCR, Speech Recognition, File Storage, Permissions
+│   │   ├── ViewModels/ # ReceiptEditViewModel
+│   │   └── Views/    # Capture flow views (Camera, Voice, Edit, etc.)
+│   ├── History/      # Expense history and management
+│   │   ├── Models/   # ReceiptGroup
+│   │   └── Views/    # HistoryView, ExpenseRowView
 │   └── Home/         # Home feature (dashboard with KPIs)
 │       ├── Models/   # HomeSummary
 │       ├── Views/    # HomeView, HomeKPICardView
 │       ├── ViewModels/ # HomeViewModel
 │       └── Services/ # HomeOverviewServiceProtocol, HomeOverviewMockService
-├── SmartExpense/     # Main app target files
-│   ├── ContentView.swift # History tab placeholder
-│   └── Persistence.swift  # CoreData persistence controller
+├── Shared/           # Shared components across features
+│   └── Views/        # ExpenseDetailView
 └── SmartExpenseTests/ # Unit tests
 ```
 
 ## ✨ Features
 
-### Home (Insights & Capture)
+### Home (Insights & Dashboard)
 
 - Default tab shown on launch.
 - Implemented in SwiftUI with a liquid glass aesthetic (blurred glass cards on a warm neutral background).
@@ -104,11 +114,45 @@ SmartExpense/
   - `Features/Home/Views/` – `HomeView`, `HomeKPICardView`.
   - `Features/Home/Services/` – `HomeOverviewServiceProtocol`, `HomeOverviewMockService`.
 
+### Capture (Receipt & Voice Expense)
+
+- Full-featured expense capture system with multiple input methods:
+  - **Camera Capture**: Take photos of receipts using device camera
+  - **Photo Library**: Select existing receipt images from photo library
+  - **Voice Input**: Record voice expenses with speech-to-text transcription
+  - **Manual Entry**: Direct manual expense entry
+- **OCR Processing**: Automatic text extraction from receipt images using Vision framework
+  - Extracts merchant name, date, total amount, and line items
+  - Parses receipt structure and itemized details
+- **Voice Recognition**: Speech-to-text transcription with expense parsing
+  - Extracts amount, merchant, and category from natural language
+- **Receipt Editing**: Full editing interface for reviewing and correcting extracted data
+  - Edit merchant details, dates, amounts
+  - Add, edit, or remove line items
+  - Assign categories to items and merchants
+- **File Storage**: Secure local storage of receipt images
+- **Permissions Management**: Handles camera, photo library, and microphone permissions
+- Source layout:
+  - `Features/Capture/Models/` – `CaptureOption`, `ExtractedReceiptData`
+  - `Features/Capture/Services/` – `ReceiptOCRService`, `SpeechRecognitionService`, `VoiceExpenseParser`, `FileStorageService`, `PermissionsManager`
+  - `Features/Capture/ViewModels/` – `ReceiptEditViewModel`
+  - `Features/Capture/Views/` – `CaptureCoordinatorView`, `CaptureMenuView`, `ImagePickerView`, `ImagePreviewView`, `ProcessingView`, `ReceiptEditView`, `VoiceRecordingView`, `VoiceExpenseReviewView`, `LineItemRowView`
+
 ### History (Expense Management)
 
-- Placeholder tab for expense/receipt list and management.
-- Currently shows a basic CoreData-backed list view (`ContentView.swift`).
-- Will be expanded to show receipts and voice expenses with full CRUD operations.
+- Fully implemented expense history and management tab.
+- CoreData-backed list view showing all captured receipts and expenses.
+- Features:
+  - **Grouped Display**: Expenses grouped by date (Today, Yesterday, This Week, Last Week, Earlier)
+  - **Expense List**: Shows merchant name, date, amount, and category
+  - **Detail View**: Full expense details with line items and receipt images
+  - **CRUD Operations**: Create, read, update, and delete expenses
+  - **Empty State**: Helpful empty state when no expenses exist
+  - **Capture Integration**: Quick access to capture flow from history tab
+- Source layout:
+  - `Features/History/Models/` – `ReceiptGroup` for date-based grouping
+  - `Features/History/Views/` – `HistoryView`, `ExpenseRowView`
+  - `Shared/Views/` – `ExpenseDetailView` (shared detail view)
 
 ### Settings
 
@@ -124,6 +168,9 @@ SmartExpense/
 | CoreData | iOS 14.0+ | Local data persistence for expenses and receipts |
 | SwiftUI | iOS 14.0+ | Modern declarative UI framework |
 | Foundation | iOS 14.0+ | Core Swift framework |
+| Vision | iOS 14.0+ | OCR text recognition from receipt images |
+| Speech | iOS 14.0+ | Speech-to-text transcription for voice expenses |
+| UIKit | iOS 14.0+ | Image picker and camera integration |
 
 **Note:** The app currently uses only Apple's built-in frameworks. No third-party dependencies are required.
 

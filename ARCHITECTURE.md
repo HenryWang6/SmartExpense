@@ -10,11 +10,15 @@ Current top-level layout:
 SmartExpense/
 ├── App/              # App entry point and configuration
 │   └── SmartExpenseApp.swift
-├── Features/         # Feature modules (Home, History, Settings, etc.)
+├── Core/             # Core infrastructure
+│   └── Data/         # Data persistence layer
+│       └── Persistence.swift  # CoreData persistence controller
+├── Features/         # Feature modules (Home, History, Capture, Settings, etc.)
+│   ├── Capture/      # Receipt and voice expense capture
+│   ├── History/      # Expense history and management
 │   └── Home/         # Home feature (dashboard)
-├── SmartExpense/     # Main app target
-│   ├── ContentView.swift # History tab placeholder
-│   └── Persistence.swift  # CoreData persistence controller
+├── Shared/           # Shared components across features
+│   └── Views/        # ExpenseDetailView
 └── SmartExpenseTests/ # Unit tests
 ```
 
@@ -51,27 +55,71 @@ The Home feature presents a dashboard with KPIs based on the locally stored rece
   - Sets up CoreData persistence controller and injects managed object context into the environment.
   - Hosts a `TabView` with:
     - `HomeView` as the default tab, instantiated with a `HomeViewModel` using `HomeOverviewMockService`.
-    - `ContentView` as the History tab (placeholder for expense/receipt management).
+    - `HistoryView` (aliased as `ContentView` for backward compatibility) as the History tab.
     - Placeholder Settings tab.
   - This is where dependency injection starts for the Home feature (wiring the service implementation).
 
-### History Feature (Placeholder)
+### Capture Feature
 
-- `SmartExpense/ContentView.swift`:
-  - Currently a placeholder implementation for the History tab.
-  - Uses CoreData to display a list of `Item` entities (temporary data model).
-  - Shows empty state when no items exist.
-  - Includes basic CRUD operations (add, delete) for testing CoreData integration.
-  - Will be replaced with a proper expense/receipt management feature in the future.
+The Capture feature provides multiple ways to input expenses: camera, photo library, voice, and manual entry. It follows MVVM architecture:
+
+- `Features/Capture/Models/`:
+  - `CaptureOption`: Enum defining capture methods (camera, voice, manual).
+  - `ExtractedReceiptData`: Model for OCR-extracted receipt data (merchant, date, total, line items).
+
+- `Features/Capture/Services/`:
+  - `ReceiptOCRService`: Uses Vision framework to extract text from receipt images and parse structured data.
+  - `SpeechRecognitionService`: Handles speech-to-text transcription using Speech framework.
+  - `VoiceExpenseParser`: Parses transcribed voice input to extract amount, merchant, and category.
+  - `FileStorageService`: Manages local file storage for receipt images (saves to app's documents directory).
+  - `PermissionsManager`: Centralized permission handling for camera, photo library, and microphone.
+
+- `Features/Capture/ViewModels/`:
+  - `ReceiptEditViewModel`: Manages the receipt editing state, handles saving to CoreData, and coordinates with file storage.
+
+- `Features/Capture/Views/`:
+  - `CaptureCoordinatorView`: Main coordinator that manages the capture flow state machine.
+  - `CaptureMenuView`: Initial menu for selecting capture method.
+  - `ImagePickerView`: Wrapper for UIImagePickerController (camera/photo library).
+  - `ImagePreviewView`: Preview screen before processing receipt image.
+  - `ProcessingView`: Loading state during OCR processing.
+  - `ReceiptEditView`: Full editing interface for reviewing and correcting extracted data.
+  - `VoiceRecordingView`: Interface for recording voice expenses.
+  - `VoiceExpenseReviewView`: Review screen for parsed voice expenses.
+  - `LineItemRowView`: Reusable component for displaying receipt line items.
+
+### History Feature
+
+The History feature provides a complete expense management interface:
+
+- `Features/History/Models/`:
+  - `ReceiptGroup`: Model for grouping receipts by date sections (Today, Yesterday, This Week, etc.).
+
+- `Features/History/Views/`:
+  - `HistoryView`: Main list view showing all expenses grouped by date.
+    - Uses CoreData `@FetchRequest` to load `Receipt` entities.
+    - Implements empty state when no expenses exist.
+    - Provides navigation to detail view and capture flow.
+    - Supports swipe-to-delete for expense removal.
+  - `ExpenseRowView`: List row component displaying expense summary (merchant, date, amount).
+
+- `Shared/Views/`:
+  - `ExpenseDetailView`: Shared detail view showing full expense information:
+    - Total amount and date header
+    - Merchant details and category
+    - Line items with quantities and prices
+    - Receipt image display (if available)
 
 ### Data Persistence
 
-- `SmartExpense/Persistence.swift`:
+- `Core/Data/Persistence.swift`:
   - Provides `PersistenceController` singleton for CoreData management.
   - Sets up `NSPersistentContainer` with the "SmartExpense" data model.
   - Supports both in-memory (for previews/testing) and persistent storage.
-  - Currently uses a basic CoreData model (`SmartExpense.xcdatamodeld`).
-  - The data model will be expanded to include proper entities for receipts, expenses, categories, and merchants.
+  - CoreData model (`SmartExpense.xcdatamodeld`) includes:
+    - **Receipt** entity: Main expense record with merchant, date, total amount, capture method, image path, and relationship to line items.
+    - **ReceiptItem** entity: Individual line items with description, quantity, unit price, subtotal, category, and sort order.
+  - Receipt images are stored separately in the app's documents directory via `FileStorageService`, with only the file path stored in CoreData.
 
 ### Data Flow (Home)
 
@@ -125,15 +173,15 @@ The Home feature presents a dashboard with KPIs based on the locally stored rece
   - Navigation into detailed Insights and History screens when cards are tapped.
   - Charts and visualizations (line charts, pie charts, bar charts).
   
-- **History Feature**:
-  - Replace placeholder `ContentView` with proper expense/receipt management.
-  - Implement receipt detail view with image viewing.
-  - Add search and filtering capabilities.
-  - Implement swipe actions for edit/delete.
+- **History Feature Enhancements**:
+  - Add search and filtering capabilities (by merchant, category, date range).
+  - Implement swipe actions for quick edit.
+  - Add export functionality (CSV, PDF).
   
-- **Capture Flow**:
-  - Receipt scanning with OCR (Vision framework).
-  - Voice expense capture with speech recognition.
-  - Receipt detail editing screen.
+- **Capture Flow Enhancements**:
+  - PDF receipt support (multi-page handling).
+  - Improved OCR accuracy and line item extraction.
+  - Merchant profile learning (auto-categorization based on history).
+  - Batch processing for multiple receipts.
 
 
