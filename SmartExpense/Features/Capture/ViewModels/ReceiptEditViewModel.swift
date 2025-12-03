@@ -12,6 +12,7 @@ import Combine
 @MainActor
 class ReceiptEditViewModel: ObservableObject {
     @Published var merchantName: String
+    @Published var merchantCategory: String
     @Published var date: Date
     @Published var totalAmount: String
     @Published var items: [EditableLineItem]
@@ -36,6 +37,7 @@ class ReceiptEditViewModel: ObservableObject {
         
         // Initialize from extracted data or defaults
         self.merchantName = extractedData?.merchantName ?? ""
+        self.merchantCategory = ""
         self.date = extractedData?.date ?? Date()
         self.totalAmount = extractedData?.totalAmount.map { String(format: "%.2f", $0) } ?? ""
         self.items = extractedData?.items.map { EditableLineItem(from: $0) } ?? []
@@ -98,6 +100,7 @@ class ReceiptEditViewModel: ObservableObject {
         let receipt = Receipt(context: viewContext)
         receipt.id = UUID()
         receipt.merchantName = merchantName.trimmingCharacters(in: .whitespacesAndNewlines)
+        receipt.merchantCategory = merchantCategory.trimmingCharacters(in: .whitespacesAndNewlines)
         receipt.date = date
         receipt.totalAmount = Double(totalAmount) ?? 0
         receipt.imagePath = savedImagePath
@@ -111,6 +114,7 @@ class ReceiptEditViewModel: ObservableObject {
                 let receiptItem = ReceiptItem(context: viewContext)
                 receiptItem.id = UUID()
                 receiptItem.itemDescription = item.description
+                receiptItem.category = item.category
                 receiptItem.quantity = item.quantity
                 receiptItem.unitPrice = item.unitPrice
                 receiptItem.subtotal = item.subtotal
@@ -146,17 +150,20 @@ class ReceiptEditViewModel: ObservableObject {
 struct EditableLineItem: Identifiable {
     let id = UUID()
     var description: String
+    var category: String
     var quantity: Double
     var unitPrice: Double
     var subtotal: Double
     
     init(
         description: String = "",
+        category: String = "",
         quantity: Double = 1.0,
         unitPrice: Double = 0.0,
         subtotal: Double = 0.0
     ) {
         self.description = description
+        self.category = category
         self.quantity = quantity
         self.unitPrice = unitPrice
         self.subtotal = subtotal
@@ -164,6 +171,7 @@ struct EditableLineItem: Identifiable {
     
     init(from extracted: ExtractedLineItem) {
         self.description = extracted.description
+        self.category = ""
         self.quantity = extracted.quantity ?? 1.0
         self.unitPrice = extracted.unitPrice ?? 0.0
         self.subtotal = extracted.subtotal ?? 0.0

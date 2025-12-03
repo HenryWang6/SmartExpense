@@ -14,7 +14,7 @@ struct LineItemRowView: View {
     @FocusState private var focusedField: Field?
     
     enum Field {
-        case description, quantity, unitPrice, subtotal
+        case description, category, quantity, unitPrice, subtotal
     }
     
     var body: some View {
@@ -35,6 +35,24 @@ struct LineItemRowView: View {
                             .fill(Color(.systemGray6))
                     )
                     .focused($focusedField, equals: .description)
+            }
+            
+            // Category
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Category")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+                
+                TextField("Item category", text: $item.category)
+                    .font(.system(size: 16, weight: .regular))
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color(.systemGray6))
+                    )
+                    .focused($focusedField, equals: .category)
             }
             
             // Quantity, Unit Price, Subtotal
@@ -142,6 +160,7 @@ struct LineItemRowView: View {
 #Preview {
     @Previewable @State var item = EditableLineItem(
         description: "Coffee",
+        category: "Food & Drink",
         quantity: 2,
         unitPrice: 4.50,
         subtotal: 9.00

@@ -8,12 +8,14 @@
         <attribute name="imagePath" optional="YES" attributeType="String"/>
         <attribute name="isVoiceInput" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="merchantName" optional="YES" attributeType="String"/>
+        <attribute name="merchantCategory" optional="YES" attributeType="String"/>
         <attribute name="totalAmount" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
         <relationship name="items" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ReceiptItem" inverseName="receipt" inverseEntity="ReceiptItem"/>
     </entity>
     <entity name="ReceiptItem" representedClassName="ReceiptItem" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="itemDescription" optional="YES" attributeType="String"/>
+        <attribute name="category" optional="YES" attributeType="String"/>
         <attribute name="unitPrice" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
         <attribute name="quantity" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
         <attribute name="subtotal" optional="YES" attributeType="Double" usesScalarValueType="YES"/>

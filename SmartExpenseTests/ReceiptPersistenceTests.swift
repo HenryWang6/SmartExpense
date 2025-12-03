@@ -33,6 +33,7 @@ final class ReceiptPersistenceTests: XCTestCase {
         let receipt = Receipt(context: viewContext)
         receipt.id = UUID()
         receipt.merchantName = "Test Merchant"
+        receipt.merchantCategory = "Groceries"
         receipt.date = Date()
         receipt.totalAmount = 42.99
         receipt.isVoiceInput = false
@@ -47,6 +48,7 @@ final class ReceiptPersistenceTests: XCTestCase {
         
         XCTAssertEqual(results.count, 1)
         XCTAssertEqual(results.first?.merchantName, "Test Merchant")
+        XCTAssertEqual(results.first?.merchantCategory, "Groceries")
         XCTAssertEqual(results.first?.totalAmount, 42.99)
         XCTAssertEqual(results.first?.isVoiceInput, false)
     }
@@ -103,15 +105,17 @@ final class ReceiptPersistenceTests: XCTestCase {
         
         let item1 = ReceiptItem(context: viewContext)
         item1.id = UUID()
-        item1.name = "Milk"
-        item1.price = 3.99
+        item1.itemDescription = "Milk"
+        item1.category = "Dairy"
+        item1.unitPrice = 3.99
         item1.quantity = 2
         item1.receipt = receipt
         
         let item2 = ReceiptItem(context: viewContext)
         item2.id = UUID()
-        item2.name = "Bread"
-        item2.price = 2.50
+        item2.itemDescription = "Bread"
+        item2.category = "Bakery"
+        item2.unitPrice = 2.50
         item2.quantity = 1
         item2.receipt = receipt
         
@@ -124,6 +128,10 @@ final class ReceiptPersistenceTests: XCTestCase {
         
         XCTAssertEqual(results.count, 1)
         XCTAssertEqual(results.first?.items?.count, 2)
+        
+        let items = results.first?.items?.allObjects as? [ReceiptItem]
+        let milk = items?.first(where: { $0.itemDescription == "Milk" })
+        XCTAssertEqual(milk?.category, "Dairy")
     }
     
     func testCascadeDeleteReceiptDeletesItems() throws {
@@ -137,8 +145,8 @@ final class ReceiptPersistenceTests: XCTestCase {
         
         let item = ReceiptItem(context: viewContext)
         item.id = UUID()
-        item.name = "Test Item"
-        item.price = 25.00
+        item.itemDescription = "Test Item"
+        item.unitPrice = 25.00
         item.quantity = 1
         item.receipt = receipt
         

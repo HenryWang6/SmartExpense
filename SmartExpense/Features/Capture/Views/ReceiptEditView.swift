@@ -82,6 +82,11 @@ struct ReceiptEditView: View {
     
     private var headerCard: some View {
         VStack(spacing: 16) {
+            Text("Receipt Details")
+                .font(.system(size: 18, weight: .bold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 4)
+            
             // Merchant name
             VStack(alignment: .leading, spacing: 8) {
                 Text("Merchant")
@@ -92,6 +97,23 @@ struct ReceiptEditView: View {
                 
                 TextField("Merchant name", text: $viewModel.merchantName)
                     .font(.system(size: 18, weight: .semibold))
+                    .padding(14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color(.systemGray6))
+                    )
+            }
+            
+            // Merchant Category
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Category")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+                
+                TextField("Merchant category", text: $viewModel.merchantCategory)
+                    .font(.system(size: 16, weight: .medium))
                     .padding(14)
                     .background(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
