@@ -18,7 +18,6 @@
 - Documentation files to maintain:
   - README.md: Project overview, setup instructions, dependencies
   - ARCHITECTURE.md: System design, patterns used, module structure
-  - CONTRIBUTING.md: Development workflow, coding standards
   - CHANGELOG.md: Track significant changes and features
 
 ## iOS Development Best Practices
