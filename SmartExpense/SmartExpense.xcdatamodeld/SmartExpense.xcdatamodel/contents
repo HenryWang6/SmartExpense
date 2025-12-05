@@ -11,6 +11,7 @@
         <attribute name="merchantName" optional="YES" attributeType="String"/>
         <attribute name="merchantCategory" optional="YES" attributeType="String"/>
         <attribute name="totalAmount" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="note" optional="YES" attributeType="String"/>
         <relationship name="items" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ReceiptItem" inverseName="receipt" inverseEntity="ReceiptItem"/>
     </entity>
     <entity name="ReceiptItem" representedClassName="ReceiptItem" syncable="YES" codeGenerationType="class">

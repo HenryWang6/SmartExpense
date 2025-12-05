@@ -9,7 +9,8 @@ import SwiftUI
 import CoreData
 
 struct ExpenseDetailView: View {
-    let receipt: Receipt
+    @Environment(\.managedObjectContext) private var viewContext
+    @ObservedObject var receipt: Receipt
     
     var body: some View {
         ZStack {
@@ -23,6 +24,9 @@ struct ExpenseDetailView: View {
                     // Header Card (Total & Date)
                     headerCard
                     
+                    // Capture Info
+                    captureInfoSection
+                    
                     // Merchant Details
                     merchantSection
                     
@@ -30,6 +34,9 @@ struct ExpenseDetailView: View {
                     if let items = receipt.items?.allObjects as? [ReceiptItem], !items.isEmpty {
                         lineItemsSection(items: items.sorted(by: { $0.sortOrder < $1.sortOrder }))
                     }
+                    
+                    // Note Section
+                    noteSection
                     
                     // Receipt Image (if available)
                     if let imagePath = receipt.imagePath,
@@ -96,6 +103,43 @@ struct ExpenseDetailView: View {
         }
     }
     
+    private var captureInfoSection: some View {
+        HStack {
+            Text("Capture Method")
+                .font(.system(size: 16, weight: .regular))
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            HStack(spacing: 6) {
+                Image(systemName: captureMethodIcon)
+                    .font(.system(size: 14))
+                
+                Text(receipt.captureMethod?.capitalized ?? "Manual")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .foregroundColor(.primary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+        )
+    }
+    
+    private var captureMethodIcon: String {
+        switch receipt.captureMethod?.lowercased() {
+        case "camera", "scan": return "camera.fill"
+        case "voice": return "mic.fill"
+        default: return "keyboard"
+        }
+    }
+    
     private func detailRow(title: String, value: String) -> some View {
         HStack {
             Text(title)
@@ -111,6 +155,9 @@ struct ExpenseDetailView: View {
         .padding(16)
     }
     
+    // Custom Disclosure Group Style to remove default padding/content indentation if needed,
+    // but default might be fine. We'll use standard DisclosureGroup for simplicity first.
+    
     private func lineItemsSection(items: [ReceiptItem]) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Line Items")
@@ -125,35 +172,76 @@ struct ExpenseDetailView: View {
                             .padding(.leading, 16)
                     }
                     
-                    HStack(alignment: .top, spacing: 12) {
-                        // Quantity badge
-                        Text("\(Int(item.quantity))x")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(6)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(item.itemDescription ?? "Item")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.primary)
+                    DisclosureGroup {
+                        VStack(spacing: 8) {
+                            Divider()
                             
-                            if let category = item.category, !category.isEmpty {
-                                Text(category)
-                                    .font(.system(size: 12, weight: .medium))
+                            HStack {
+                                Text("Unit Price")
+                                    .font(.subheadline)
                                     .foregroundColor(.secondary)
+                                Spacer()
+                                Text("$\(item.unitPrice, specifier: "%.2f")")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                            }
+                            
+                            HStack {
+                                Text("Quantity")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text("\(item.quantity, specifier: "%.1f")")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                            }
+                            
+                            HStack {
+                                Text("Subtotal")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Text("$\(item.subtotal, specifier: "%.2f")")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
                             }
                         }
-                        
-                        Spacer()
-                        
-                        Text("$\(item.subtotal, specifier: "%.2f")")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.primary)
+                        .padding(.top, 8)
+                        .padding(.bottom, 8)
+                    } label: {
+                        HStack(alignment: .top, spacing: 12) {
+                            // Quantity badge
+                            Text("\(Int(item.quantity))x")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(6)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(item.itemDescription ?? "Item")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundColor(.primary)
+                                    .multilineTextAlignment(.leading)
+                                
+                                if let category = item.category, !category.isEmpty {
+                                    Text(category)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            Text("$\(item.subtotal, specifier: "%.2f")")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.vertical, 12)
                     }
-                    .padding(16)
+                    .padding(.horizontal, 16)
+                    .accentColor(.secondary)
                 }
             }
             .background(
@@ -161,6 +249,42 @@ struct ExpenseDetailView: View {
                     .fill(Color(.systemBackground))
                     .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
             )
+        }
+    }
+    
+    private var noteSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Notes")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(.primary)
+                .padding(.horizontal, 4)
+            
+            VStack {
+                TextEditor(text: Binding(
+                    get: { receipt.note ?? "" },
+                    set: { 
+                        receipt.note = $0 
+                        saveContext()
+                    }
+                ))
+                .frame(minHeight: 100)
+                .scrollContentBackground(.hidden)
+                .background(Color(.systemBackground))
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+            )
+        }
+    }
+    
+    private func saveContext() {
+        do {
+            try viewContext.save()
+        } catch {
+            print("Error saving note: \(error)")
         }
     }
     
