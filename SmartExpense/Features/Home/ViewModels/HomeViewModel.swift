@@ -38,9 +38,16 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var state: LoadingState = .idle
     @Published private(set) var periodTitle: String = ""
     @Published private(set) var totalSpendText: String = "-"
+    @Published private(set) var spendingComparisonText: String = ""
     @Published private(set) var averageDailySpendText: String = "-"
     @Published private(set) var topMerchantTitle: String = "-"
     @Published private(set) var topCategoryTitle: String = "-"
+    
+    @Published private(set) var biggestPurchaseAmount: String = "-"
+    @Published private(set) var biggestPurchaseMerchant: String = "-"
+    @Published private(set) var biggestPurchaseDate: String = "-"
+    
+    @Published private(set) var categorySpending: [(category: String, amount: Double)] = []
 
     private let service: HomeOverviewServiceProtocol
     private let currencyFormatter: NumberFormatter
@@ -105,6 +112,16 @@ final class HomeViewModel: ObservableObject {
         updatePeriodTitle()
         
         totalSpendText = currencyFormatter.string(from: summary.totalSpend as NSDecimalNumber) ?? "-"
+        
+        if let previousTotal = summary.previousPeriodTotalSpend {
+            let diff = summary.totalSpend - previousTotal
+            let diffText = currencyFormatter.string(from: abs(diff) as NSDecimalNumber) ?? "-"
+            let sign = diff >= 0 ? "+" : "-"
+            spendingComparisonText = "\(sign)\(diffText) vs last period"
+        } else {
+            spendingComparisonText = ""
+        }
+        
         averageDailySpendText = currencyFormatter.string(from: summary.averageDailySpend as NSDecimalNumber) ?? "-"
 
         if let merchantName = summary.topMerchantName,
@@ -122,6 +139,21 @@ final class HomeViewModel: ObservableObject {
         } else {
             topCategoryTitle = "No category data yet"
         }
+        
+        if let biggest = summary.biggestPurchase {
+            biggestPurchaseAmount = currencyFormatter.string(from: biggest.amount as NSDecimalNumber) ?? "-"
+            biggestPurchaseMerchant = biggest.merchant
+            
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateStyle = .medium
+            biggestPurchaseDate = dateFormatter.string(from: biggest.date)
+        } else {
+            biggestPurchaseAmount = "-"
+            biggestPurchaseMerchant = "-"
+            biggestPurchaseDate = "-"
+        }
+        
+        categorySpending = summary.categorySpending.map { ($0.category, NSDecimalNumber(decimal: $0.amount).doubleValue) }
     }
     
     private func updatePeriodTitle() {

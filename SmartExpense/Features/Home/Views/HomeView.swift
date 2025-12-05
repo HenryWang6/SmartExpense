@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 struct HomeView: View {
     @ObservedObject var viewModel: HomeViewModel
@@ -105,7 +106,8 @@ struct HomeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
                 totalSpendView
-                kpiCards
+                cardsGrid
+                categoryDistributionChart
                 Spacer(minLength: 100)
             }
             .padding(.horizontal, 24)
@@ -142,45 +144,124 @@ struct HomeView: View {
             Text(viewModel.totalSpendText)
                 .font(.system(size: 48, weight: .bold, design: .rounded))
                 .foregroundColor(.primary)
-                .scaleEffect(1.0)
-                // Remove individual transition here as the parent container handles it
+            
+            if !viewModel.spendingComparisonText.isEmpty {
+                Text(viewModel.spendingComparisonText)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(viewModel.spendingComparisonText.contains("+") ? .red : .green)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(viewModel.spendingComparisonText.contains("+") ? Color.red.opacity(0.1) : Color.green.opacity(0.1))
+                    )
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
         .offset(x: dragOffset) // Visual feedback during drag
     }
 
-    private var kpiCards: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
-                HomeKPICardView(
-                    title: "Avg Daily Spend",
-                    value: viewModel.averageDailySpendText,
-                    subtitle: "Per day",
-                    icon: "chart.line.uptrend.xyaxis",
-                    color: .green
-                )
-
-                HomeKPICardView(
-                    title: "Top Merchant",
-                    value: viewModel.topMerchantTitle,
-                    subtitle: "Highest spend",
-                    icon: "storefront.fill",
-                    color: .orange
-                )
-
-                HomeKPICardView(
-                    title: "Top Category",
-                    value: viewModel.topCategoryTitle,
-                    subtitle: "Highest spend",
-                    icon: "tag.fill",
-                    color: .purple
-                )
+    private var cardsGrid: some View {
+        HStack(spacing: 16) {
+            // Top Category Card
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "tag.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.purple)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Color.purple.opacity(0.15)))
+                    Spacer()
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Top Category")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                    
+                    Text(viewModel.topCategoryTitle.components(separatedBy: " – ").first ?? "-")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    
+                    Text(viewModel.topCategoryTitle.components(separatedBy: " – ").last ?? "-")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(.secondary)
+                }
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 4)
-            .offset(x: dragOffset) // Visual feedback during drag
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+            )
+            
+            // Biggest Purchase Card
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "cart.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(.orange)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(Color.orange.opacity(0.15)))
+                    Spacer()
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Biggest Purchase")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                    
+                    Text(viewModel.biggestPurchaseAmount)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text(viewModel.biggestPurchaseMerchant)
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+            )
         }
+        .offset(x: dragOffset)
+    }
+    
+    private var categoryDistributionChart: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Spending by Category")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            Chart(viewModel.categorySpending, id: \.category) { item in
+                SectorMark(
+                    angle: .value("Amount", item.amount),
+                    innerRadius: .ratio(0.618),
+                    angularInset: 1.5
+                )
+                .cornerRadius(5)
+                .foregroundStyle(by: .value("Category", item.category))
+            }
+            .frame(height: 220)
+            .chartLegend(position: .bottom, spacing: 20)
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+        )
+        .offset(x: dragOffset)
     }
 
     private var captureButton: some View {
