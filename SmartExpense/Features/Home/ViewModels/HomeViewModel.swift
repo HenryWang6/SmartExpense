@@ -94,17 +94,54 @@ final class HomeViewModel: ObservableObject {
     private func load() async {
         state = .loading
         do {
-            // In a real app, we would pass the date range to the service
-            // let range = dateRange(for: selectedPeriod, date: currentReferenceDate)
-            // let summary = try await service.loadSummary(for: range)
+            let range = dateRange(for: selectedPeriod, date: currentReferenceDate)
             
-            // For now, we just load the mock summary
-            let summary = try await service.loadCurrentSummary()
+            // We need to cast the service to HomeOverviewCoreDataService to access the new method
+            // OR we should update the protocol. 
+            // Since I cannot easily update the protocol across all files in one go without potential breakage if I miss one,
+            // I will try to cast it first. If it fails, I'll fallback to loadCurrentSummary (which I also implemented).
+            // However, the cleanest way is to update the protocol.
+            // Let's assume I will update the protocol in the next step.
+            // For now, let's try to use the new method if available.
+            
+            let summary: HomeSummary
+            if let coreDataService = service as? HomeOverviewCoreDataService {
+                summary = try await coreDataService.loadSummary(start: range.start, end: range.end)
+            } else {
+                summary = try await service.loadCurrentSummary()
+            }
+            
             apply(summary: summary)
             state = .loaded
         } catch {
             state = .failed(error: "Unable to load overview. Please try again.")
         }
+    }
+    
+    private func dateRange(for period: Period, date: Date) -> (start: Date, end: Date) {
+        let calendar = Calendar.current
+        var start: Date
+        var end: Date
+        
+        switch period {
+        case .daily:
+            start = calendar.startOfDay(for: date)
+            end = calendar.date(byAdding: .day, value: 1, to: start)!.addingTimeInterval(-1)
+        case .weekly:
+            let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+            start = calendar.date(from: components)!
+            end = calendar.date(byAdding: .weekOfYear, value: 1, to: start)!.addingTimeInterval(-1)
+        case .monthly:
+            let components = calendar.dateComponents([.year, .month], from: date)
+            start = calendar.date(from: components)!
+            end = calendar.date(byAdding: .month, value: 1, to: start)!.addingTimeInterval(-1)
+        case .yearly:
+            let components = calendar.dateComponents([.year], from: date)
+            start = calendar.date(from: components)!
+            end = calendar.date(byAdding: .year, value: 1, to: start)!.addingTimeInterval(-1)
+        }
+        
+        return (start, end)
     }
 
     private func apply(summary: HomeSummary) {

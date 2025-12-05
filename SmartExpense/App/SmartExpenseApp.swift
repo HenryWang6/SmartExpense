@@ -23,7 +23,7 @@ struct SmartExpenseApp: App {
 struct RootTabView: View {
     var body: some View {
         TabView {
-            HomeView(viewModel: HomeViewModel(service: HomeOverviewMockService()))
+            HomeView(viewModel: HomeViewModel(service: HomeOverviewCoreDataService(viewContext: PersistenceController.shared.container.viewContext)))
                 .tabItem {
                     Image(systemName: "house.fill")
                     Text("Home")

@@ -38,11 +38,14 @@ private struct MockService: HomeOverviewServiceProtocol {
         HomeSummary(
             periodDescription: "This Month",
             totalSpend: 123.45,
+            previousPeriodTotalSpend: 100.00,
             averageDailySpend: 6.78,
             topMerchantName: "Coffee Place",
             topMerchantAmount: 50.0,
             topCategoryName: "Food & Dining",
-            topCategoryAmount: 70.0
+            topCategoryAmount: 70.0,
+            biggestPurchase: (amount: 50.0, merchant: "Coffee Place", date: Date()),
+            categorySpending: [("Food & Dining", 70.0), ("Others", 53.45)]
         )
     }
 }
