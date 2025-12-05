@@ -108,6 +108,7 @@ struct HomeView: View {
                 totalSpendView
                 cardsGrid
                 categoryDistributionChart
+                spendingTrendChart
                 Spacer(minLength: 100)
             }
             .padding(.horizontal, 24)
@@ -254,6 +255,67 @@ struct HomeView: View {
             }
             .frame(height: 220)
             .chartLegend(position: .bottom, spacing: 20)
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+        )
+        .offset(x: dragOffset)
+    }
+
+    private var spendingTrendChart: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Spending Trend")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            if viewModel.selectedPeriod == .yearly {
+                Text("Trend not available for yearly view")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 200)
+            } else {
+                Chart(viewModel.spendingTrend, id: \.date) { item in
+                    LineMark(
+                        x: .value("Date", item.date),
+                        y: .value("Amount", item.amount)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(Color.accentColor)
+                    
+                    AreaMark(
+                        x: .value("Date", item.date),
+                        y: .value("Amount", item.amount)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [
+                                Color.accentColor.opacity(0.3),
+                                Color.accentColor.opacity(0.0)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                }
+                .frame(height: 220)
+                .chartXAxis {
+                    AxisMarks(values: .automatic) { value in
+                        AxisGridLine()
+                        AxisTick()
+                        if viewModel.selectedPeriod == .monthly {
+                            AxisValueLabel(format: .dateTime.month())
+                        } else if viewModel.selectedPeriod == .weekly {
+                            AxisValueLabel(format: .dateTime.month().day())
+                        } else {
+                            AxisValueLabel(format: .dateTime.day())
+                        }
+                    }
+                }
+            }
         }
         .padding(20)
         .background(

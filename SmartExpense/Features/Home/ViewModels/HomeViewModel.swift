@@ -48,6 +48,7 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var biggestPurchaseDate: String = "-"
     
     @Published private(set) var categorySpending: [(category: String, amount: Double)] = []
+    @Published private(set) var spendingTrend: [(date: Date, amount: Double)] = []
 
     private let service: HomeOverviewServiceProtocol
     private let currencyFormatter: NumberFormatter
@@ -75,11 +76,6 @@ final class HomeViewModel: ObservableObject {
     func selectPeriod(_ period: Period) {
         guard selectedPeriod != period else { return }
         selectedPeriod = period
-        // Reset reference date to today when switching periods? 
-        // Or keep the same reference date? Usually resetting to "now" or keeping the anchor is better.
-        // Let's keep the current reference date but snap it if necessary.
-        // For simplicity, let's just keep the currentReferenceDate as is, 
-        // but we might want to ensure it's valid for the period.
         updatePeriodTitle()
         Task { await load() }
     }
@@ -95,26 +91,23 @@ final class HomeViewModel: ObservableObject {
         state = .loading
         do {
             let range = dateRange(for: selectedPeriod, date: currentReferenceDate)
+            let homePeriod = mapPeriod(selectedPeriod)
             
-            // We need to cast the service to HomeOverviewCoreDataService to access the new method
-            // OR we should update the protocol. 
-            // Since I cannot easily update the protocol across all files in one go without potential breakage if I miss one,
-            // I will try to cast it first. If it fails, I'll fallback to loadCurrentSummary (which I also implemented).
-            // However, the cleanest way is to update the protocol.
-            // Let's assume I will update the protocol in the next step.
-            // For now, let's try to use the new method if available.
-            
-            let summary: HomeSummary
-            if let coreDataService = service as? HomeOverviewCoreDataService {
-                summary = try await coreDataService.loadSummary(start: range.start, end: range.end)
-            } else {
-                summary = try await service.loadCurrentSummary()
-            }
+            let summary = try await service.loadSummary(start: range.start, end: range.end, period: homePeriod)
             
             apply(summary: summary)
             state = .loaded
         } catch {
             state = .failed(error: "Unable to load overview. Please try again.")
+        }
+    }
+    
+    private func mapPeriod(_ period: Period) -> HomePeriod {
+        switch period {
+        case .daily: return .daily
+        case .weekly: return .weekly
+        case .monthly: return .monthly
+        case .yearly: return .yearly
         }
     }
     
@@ -191,6 +184,7 @@ final class HomeViewModel: ObservableObject {
         }
         
         categorySpending = summary.categorySpending.map { ($0.category, NSDecimalNumber(decimal: $0.amount).doubleValue) }
+        spendingTrend = summary.spendingTrend.map { ($0.date, NSDecimalNumber(decimal: $0.amount).doubleValue) }
     }
     
     private func updatePeriodTitle() {

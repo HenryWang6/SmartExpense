@@ -12,6 +12,7 @@ struct HomeSummary {
     let topCategoryAmount: Decimal?
     let biggestPurchase: (amount: Decimal, merchant: String, date: Date)?
     let categorySpending: [(category: String, amount: Decimal)]
+    let spendingTrend: [(date: Date, amount: Decimal)]
 }
 
 
