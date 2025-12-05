@@ -17,6 +17,12 @@ struct HistoryView: View {
     private var receipts: FetchedResults<Receipt>
     
     @State private var showingCaptureFlow = false
+    @State private var expandedSections: Set<String> = []
+    
+    // Initializer to set default expanded sections
+    init() {
+        _expandedSections = State(initialValue: Set(["Today", "This Week"]))
+    }
 
 
     var body: some View {
@@ -38,7 +44,18 @@ struct HistoryView: View {
                 } else {
                     List {
                         ForEach(groupedReceipts, id: \.section) { group in
-                            Section {
+                            DisclosureGroup(
+                                isExpanded: Binding(
+                                    get: { expandedSections.contains(group.section) },
+                                    set: { isExpanded in
+                                        if isExpanded {
+                                            expandedSections.insert(group.section)
+                                        } else {
+                                            expandedSections.remove(group.section)
+                                        }
+                                    }
+                                )
+                            ) {
                                 ForEach(group.receipts) { receipt in
                                     NavigationLink {
                                         ExpenseDetailView(receipt: receipt)
@@ -54,7 +71,7 @@ struct HistoryView: View {
                                 .onDelete { offsets in
                                     deleteReceipts(from: group, at: offsets)
                                 }
-                            } header: {
+                            } label: {
                                 Text(group.section)
                                     .font(.system(size: 14, weight: .semibold))
                                     .foregroundColor(.secondary)
@@ -93,37 +110,59 @@ struct HistoryView: View {
     private var groupedReceipts: [ReceiptGroup] {
         let calendar = Calendar.current
         let now = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMMM"
         
         var groups: [String: [Receipt]] = [:]
         
-        for receipt in receipts {
-            let receiptDate = receipt.date ?? Date()
-            let section: String
-            
-            if calendar.isDateInToday(receiptDate) {
-                section = "Today"
-            } else if calendar.isDateInYesterday(receiptDate) {
-                section = "Yesterday"
-            } else if calendar.isDate(receiptDate, equalTo: now, toGranularity: .weekOfYear) {
-                section = "This Week"
-            } else if let lastWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: now),
-                      calendar.isDate(receiptDate, equalTo: lastWeekStart, toGranularity: .weekOfYear) {
-                section = "Last Week"
-            } else {
-                section = "Earlier"
+        // Pre-calculate dates for comparison
+        let currentMonthName = dateFormatter.string(from: now)
+        
+        var previousMonths: [(date: Date, name: String)] = []
+        for i in 1...3 {
+            if let date = calendar.date(byAdding: .month, value: -i, to: now) {
+                previousMonths.append((date, dateFormatter.string(from: date)))
             }
-            
-            if groups[section] == nil {
-                groups[section] = []
-            }
-            groups[section]?.append(receipt)
         }
         
-        let sectionOrder = ["Today", "Yesterday", "This Week", "Last Week", "Earlier"]
-        return sectionOrder.compactMap { sectionName in
-            guard let receipts = groups[sectionName], !receipts.isEmpty else { return nil }
-            return ReceiptGroup(section: sectionName, receipts: receipts)
-        }
+
+        for receipt in receipts {
+             let receiptDate = receipt.date ?? Date()
+             let section: String
+             
+             if calendar.isDateInToday(receiptDate) {
+                 section = "Today"
+             } else if calendar.isDate(receiptDate, equalTo: now, toGranularity: .weekOfYear) {
+                 section = "This Week"
+             } else if calendar.isDate(receiptDate, equalTo: now, toGranularity: .month) {
+                 section = currentMonthName
+             } else {
+                 var matched = false
+                 var tempSection = "Earlier"
+                 for monthData in previousMonths {
+                     if calendar.isDate(receiptDate, equalTo: monthData.date, toGranularity: .month) {
+                         tempSection = monthData.name
+                         matched = true
+                         break
+                     }
+                 }
+                 section = tempSection
+             }
+             
+             if groups[section] == nil {
+                 groups[section] = []
+             }
+             groups[section]?.append(receipt)
+         }
+         
+         var sectionOrder = ["Today", "This Week", currentMonthName]
+         sectionOrder.append(contentsOf: previousMonths.map { $0.name })
+         sectionOrder.append("Earlier")
+         
+         return sectionOrder.compactMap { sectionName in
+             guard let receipts = groups[sectionName], !receipts.isEmpty else { return nil }
+             return ReceiptGroup(section: sectionName, receipts: receipts)
+         }
     }
     
     private var emptyStateView: some View {
