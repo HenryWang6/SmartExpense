@@ -37,6 +37,8 @@ final class HomeViewModel: ObservableObject {
     
     @Published private(set) var state: LoadingState = .idle
     @Published private(set) var periodTitle: String = ""
+    @Published private(set) var previousPeriodTitle: String = ""
+    @Published private(set) var nextPeriodTitle: String = ""
     @Published private(set) var totalSpendText: String = "-"
     @Published private(set) var spendingComparisonText: String = ""
     @Published private(set) var averageDailySpendText: String = "-"
@@ -188,35 +190,51 @@ final class HomeViewModel: ObservableObject {
     }
     
     private func updatePeriodTitle() {
+        periodTitle = title(for: selectedPeriod, date: currentReferenceDate)
+        
+        if let prevDate = calendar.date(byAdding: component(for: selectedPeriod), value: -1, to: currentReferenceDate) {
+            previousPeriodTitle = title(for: selectedPeriod, date: prevDate)
+        } else {
+            previousPeriodTitle = ""
+        }
+        
+        if let nextDate = calendar.date(byAdding: component(for: selectedPeriod), value: 1, to: currentReferenceDate) {
+            nextPeriodTitle = title(for: selectedPeriod, date: nextDate)
+        } else {
+            nextPeriodTitle = ""
+        }
+    }
+    
+    private func title(for period: Period, date: Date) -> String {
         let formatter = DateFormatter()
         
-        switch selectedPeriod {
+        switch period {
         case .daily:
-            if calendar.isDateInToday(currentReferenceDate) {
-                periodTitle = "Today"
-            } else if calendar.isDateInYesterday(currentReferenceDate) {
-                periodTitle = "Yesterday"
+            if calendar.isDateInToday(date) {
+                return "Today"
+            } else if calendar.isDateInYesterday(date) {
+                return "Yesterday"
             } else {
                 formatter.dateStyle = .medium
-                periodTitle = formatter.string(from: currentReferenceDate)
+                return formatter.string(from: date)
             }
         case .weekly:
             // Show "Oct 22 - Oct 28"
             // Find start and end of week
-            if let weekInterval = calendar.dateInterval(of: .weekOfYear, for: currentReferenceDate) {
+            if let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date) {
                 formatter.dateFormat = "MMM d"
                 let start = formatter.string(from: weekInterval.start)
                 let end = formatter.string(from: weekInterval.end.addingTimeInterval(-1))
-                periodTitle = "\(start) - \(end)"
+                return "\(start) - \(end)"
             } else {
-                periodTitle = "This Week"
+                return "This Week"
             }
         case .monthly:
-            formatter.dateFormat = "MMMM yyyy"
-            periodTitle = formatter.string(from: currentReferenceDate)
+            formatter.dateFormat = "MMM yyyy"
+            return formatter.string(from: date)
         case .yearly:
             formatter.dateFormat = "yyyy"
-            periodTitle = formatter.string(from: currentReferenceDate)
+            return formatter.string(from: date)
         }
     }
     

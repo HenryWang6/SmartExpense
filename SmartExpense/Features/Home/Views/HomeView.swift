@@ -87,19 +87,46 @@ struct HomeView: View {
     @Namespace private var namespace
 
     private var periodDescriptionView: some View {
-        HStack(spacing: 6) {
-            Text(viewModel.periodTitle)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.secondary)
-                .id("PeriodTitle-\(viewModel.periodTitle)") // Animate text change
+        HStack(spacing: 0) {
+            // Previous Period
+            Text(viewModel.previousPeriodTitle)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.secondary.opacity(0.5))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 4)
+                .id("PrevPeriod-\(viewModel.previousPeriodTitle)")
                 .transition(.opacity)
             
-            if viewModel.state == .loading {
-                ProgressView()
-                    .scaleEffect(0.7)
+            // Current Period
+            HStack(spacing: 6) {
+                Text(viewModel.periodTitle)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .id("PeriodTitle-\(viewModel.periodTitle)") // Animate text change
+                    .transition(.opacity)
+                
+                if viewModel.state == .loading {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                }
             }
+            .layoutPriority(1)
+            
+            // Next Period
+            Text(viewModel.nextPeriodTitle)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.secondary.opacity(0.5))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.trailing, 4)
+                .id("NextPeriod-\(viewModel.nextPeriodTitle)")
+                .transition(.opacity)
         }
         .frame(maxWidth: .infinity)
+        .animation(.easeInOut, value: viewModel.periodTitle)
     }
     
     private var mainContentView: some View {
