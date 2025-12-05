@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @ObservedObject var viewModel: HomeViewModel
     @State private var showingCaptureFlow = false
+    @State private var slideEdge: Edge = .trailing
     @State private var dragOffset: CGFloat = 0
 
     var body: some View {
@@ -11,43 +12,21 @@ struct HomeView: View {
             
             VStack(spacing: 0) {
                 // Fixed Header Area
-                VStack(spacing: 24) {
+                VStack(spacing: 16) {
                     periodSelector
-                    summaryView
+                    periodDescriptionView
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
-                .padding(.bottom, 20)
+                .padding(.bottom, 10)
                 
-                // Scrollable Content Area
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 28) {
-                        kpiCards
-                        Spacer(minLength: 100)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 10)
-                }
-                .contentShape(Rectangle()) // Ensure the whole area is swipeable
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            dragOffset = value.translation.width
-                        }
-                        .onEnded { value in
-                            let threshold: CGFloat = 50
-                            if value.translation.width > threshold {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    viewModel.movePeriod(by: -1)
-                                }
-                            } else if value.translation.width < -threshold {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    viewModel.movePeriod(by: 1)
-                                }
-                            }
-                            dragOffset = 0
-                        }
-                )
+                // Swipeable Content Area
+                mainContentView
+                    .id(viewModel.periodTitle) // Force recreation on period change
+                    .transition(.asymmetric(
+                        insertion: .move(edge: slideEdge),
+                        removal: .move(edge: slideEdge == .leading ? .trailing : .leading)
+                    ))
             }
             
             captureButton
@@ -106,39 +85,74 @@ struct HomeView: View {
     
     @Namespace private var namespace
 
-    private var summaryView: some View {
+    private var periodDescriptionView: some View {
+        HStack(spacing: 6) {
+            Text(viewModel.periodTitle)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.secondary)
+                .id("PeriodTitle-\(viewModel.periodTitle)") // Animate text change
+                .transition(.opacity)
+            
+            if viewModel.state == .loading {
+                ProgressView()
+                    .scaleEffect(0.7)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+    
+    private var mainContentView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                totalSpendView
+                kpiCards
+                Spacer(minLength: 100)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 10)
+        }
+        .contentShape(Rectangle()) // Ensure the whole area is swipeable
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    dragOffset = value.translation.width
+                }
+                .onEnded { value in
+                    let threshold: CGFloat = 50
+                    if value.translation.width > threshold {
+                        // Swipe Right -> Previous Period
+                        slideEdge = .leading // Enter from leading (left)
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            viewModel.movePeriod(by: -1)
+                        }
+                    } else if value.translation.width < -threshold {
+                        // Swipe Left -> Next Period
+                        slideEdge = .trailing // Enter from trailing (right)
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            viewModel.movePeriod(by: 1)
+                        }
+                    }
+                    dragOffset = 0
+                }
+        )
+    }
+
+    private var totalSpendView: some View {
         VStack(spacing: 8) {
             Text(viewModel.totalSpendText)
                 .font(.system(size: 48, weight: .bold, design: .rounded))
                 .foregroundColor(.primary)
                 .scaleEffect(1.0)
-                .transition(.opacity.combined(with: .scale))
-                .id("TotalSpend-\(viewModel.periodTitle)") // Force transition on change
-
-            HStack(spacing: 6) {
-                Text(viewModel.periodTitle)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.secondary)
-                
-                if viewModel.state == .loading {
-                    ProgressView()
-                        .scaleEffect(0.7)
-                }
-            }
+                // Remove individual transition here as the parent container handles it
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
+        .offset(x: dragOffset) // Visual feedback during drag
     }
 
     private var kpiCards: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 16) {
-                // We can keep the Total Spend card or remove it since it's now the main summary.
-                // The user requested "Summary: Large text display... Content View: A scrollable container holding the primary content (Charts, Category lists, etc.)"
-                // Let's keep the other KPIs but maybe remove Total Spend from the cards since it's redundant?
-                // Or keep it for consistency with "This period" vs "Per day".
-                // Let's keep it for now but maybe we can update it later.
-                
                 HomeKPICardView(
                     title: "Avg Daily Spend",
                     value: viewModel.averageDailySpendText,

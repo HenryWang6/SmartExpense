@@ -12,6 +12,8 @@ final class HomeViewModel: ObservableObject {
         var id: String { rawValue }
     }
     
+
+    
     enum LoadingState: Equatable {
         case idle
         case loading
