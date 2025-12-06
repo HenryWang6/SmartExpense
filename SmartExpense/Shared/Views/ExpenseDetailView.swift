@@ -30,10 +30,10 @@ struct ExpenseDetailView: View {
                     // Merchant Details
                     merchantSection
                     
-                    // Line Items
-                    if let items = receipt.items?.allObjects as? [ReceiptItem], !items.isEmpty {
-                        lineItemsSection(items: items.sorted(by: { $0.sortOrder < $1.sortOrder }))
-                    }
+//                    // Line Items
+//                    if let items = receipt.items?.allObjects as? [ReceiptItem], !items.isEmpty {
+//                        lineItemsSection(items: items.sorted(by: { $0.sortOrder < $1.sortOrder }))
+//                    }
                     
                     // Note Section
                     noteSection

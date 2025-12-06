@@ -81,7 +81,7 @@ class ReceiptOCRService {
         totalAmount = extractTotalAmount(from: lines)
         
         // Extract line items
-        items = extractLineItems(from: lines)
+//        items = extractLineItems(from: lines)
         
         // Determine confidence
         let fieldsFound = [merchantName != nil, date != nil, totalAmount != nil].filter { $0 }.count

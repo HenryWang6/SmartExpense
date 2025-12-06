@@ -33,16 +33,16 @@ struct ReceiptEditView: View {
                         // Header card
                         headerCard
                         
-                        // Items section
-                        itemsSection
-                        
-                        // Add item button
-                        addItemButton
-                        
-                        // Calculated total
-                        if !viewModel.items.isEmpty {
-                            calculatedTotalCard
-                        }
+//                        // Items section
+//                        itemsSection
+//                        
+//                        // Add item button
+//                        addItemButton
+//                        
+//                        // Calculated total
+//                        if !viewModel.items.isEmpty {
+//                            calculatedTotalCard
+//                        }
                         
                         Spacer(minLength: 100)
                     }

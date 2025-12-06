@@ -122,20 +122,20 @@ class ReceiptEditViewModel: ObservableObject {
         receipt.createdAt = Date()
         receipt.updatedAt = Date()
         
-        // Create ReceiptItem entities
-        for (index, item) in items.enumerated() {
-            if !item.description.isEmpty {
-                let receiptItem = ReceiptItem(context: viewContext)
-                receiptItem.id = UUID()
-                receiptItem.itemDescription = item.description
-                receiptItem.category = item.category
-                receiptItem.quantity = item.quantity
-                receiptItem.unitPrice = item.unitPrice
-                receiptItem.subtotal = item.subtotal
-                receiptItem.sortOrder = Int16(index)
-                receiptItem.receipt = receipt
-            }
-        }
+//        // Create ReceiptItem entities
+//        for (index, item) in items.enumerated() {
+//            if !item.description.isEmpty {
+//                let receiptItem = ReceiptItem(context: viewContext)
+//                receiptItem.id = UUID()
+//                receiptItem.itemDescription = item.description
+//                receiptItem.category = item.category
+//                receiptItem.quantity = item.quantity
+//                receiptItem.unitPrice = item.unitPrice
+//                receiptItem.subtotal = item.subtotal
+//                receiptItem.sortOrder = Int16(index)
+//                receiptItem.receipt = receipt
+//            }
+//        }
         
         // Save context
         do {
