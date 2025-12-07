@@ -65,10 +65,12 @@ struct CaptureCoordinatorView: View {
                 )
                 
             case .receiptEdit:
-                ReceiptEditView(
-                    viewModel: ReceiptEditViewModel(
+                ReceiptReviewView(
+                    viewModel: ReceiptReviewViewModel(
                         extractedData: extractedData,
                         image: selectedImage,
+                        isVoiceInput: captureMethod == "voice",
+                        voiceTranscript: captureMethod == "voice" ? voiceTranscription : nil,
                         captureMethod: captureMethod,
                         viewContext: viewContext
                     )
@@ -80,14 +82,33 @@ struct CaptureCoordinatorView: View {
             case .voiceRecording:
                 VoiceRecordingView { transcription in
                     voiceTranscription = transcription
-                    captureState = .voiceReview
+                    // Parse the transcription
+                    let parsed = VoiceExpenseParser.parse(transcription)
+                    extractedData = ExtractedReceiptData(
+                        merchantName: parsed.merchant ?? "",
+                        date: Date(),
+                        totalAmount: parsed.amount,
+                        items: [],
+                        confidence: .medium
+                    )
+                    captureState = .receiptEdit
                 }
                 
             case .voiceReview:
-                VoiceExpenseReviewView(transcription: voiceTranscription)
-                    .onDisappear {
-                        dismiss()
-                    }
+                // This case is now unused, but kept for compatibility
+                ReceiptReviewView(
+                    viewModel: ReceiptReviewViewModel(
+                        extractedData: extractedData,
+                        image: nil,
+                        isVoiceInput: true,
+                        voiceTranscript: voiceTranscription,
+                        captureMethod: "voice",
+                        viewContext: viewContext
+                    )
+                )
+                .onDisappear {
+                    dismiss()
+                }
             }
         }
         .fullScreenCover(isPresented: Binding(

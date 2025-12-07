@@ -1,5 +1,5 @@
 //
-//  ReceiptEditViewModel.swift
+//  ReceiptReviewViewModel.swift
 //  SmartExpense
 //
 //  Created by Henry Wang on 2025-11-29.
@@ -10,7 +10,7 @@ import CoreData
 import Combine
 
 @MainActor
-class ReceiptEditViewModel: ObservableObject {
+class ReceiptReviewViewModel: ObservableObject {
     @Published var merchantName: String
     @Published var merchantCategory: String
     @Published var date: Date
@@ -19,23 +19,26 @@ class ReceiptEditViewModel: ObservableObject {
     @Published var imagePath: String?
     @Published var isVoiceInput: Bool
     @Published var captureMethod: String
+    @Published var voiceTranscript: String
     
     @Published var showingError = false
     @Published var errorMessage = ""
     
     private let viewContext: NSManagedObjectContext
-    private let receiptImage: UIImage?
+    let receiptImage: UIImage?
     
     init(
         extractedData: ExtractedReceiptData? = nil,
         image: UIImage? = nil,
         isVoiceInput: Bool = false,
+        voiceTranscript: String? = nil,
         captureMethod: String? = nil,
         viewContext: NSManagedObjectContext
     ) {
         self.viewContext = viewContext
         self.receiptImage = image
         self.isVoiceInput = isVoiceInput
+        self.voiceTranscript = voiceTranscript ?? ""
         
         // Determine capture method
         if let method = captureMethod {
@@ -119,6 +122,7 @@ class ReceiptEditViewModel: ObservableObject {
         receipt.imagePath = savedImagePath
         receipt.isVoiceInput = isVoiceInput
         receipt.captureMethod = captureMethod
+        receipt.voiceTranscript = voiceTranscript
         receipt.createdAt = Date()
         receipt.updatedAt = Date()
         

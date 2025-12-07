@@ -1,5 +1,5 @@
 //
-//  ReceiptEditView.swift
+//  ReceiptReviewView.swift
 //  SmartExpense
 //
 //  Created by Henry Wang on 2025-11-29.
@@ -8,9 +8,9 @@
 import SwiftUI
 import CoreData
 
-struct ReceiptEditView: View {
+struct ReceiptReviewView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var viewModel: ReceiptEditViewModel
+    @ObservedObject var viewModel: ReceiptReviewViewModel
     
     @State private var isSaving = false
     
@@ -33,6 +33,15 @@ struct ReceiptEditView: View {
                         // Header card
                         headerCard
                         
+                        // Conditional content based on capture method
+                        if viewModel.captureMethod == "camera", let image = viewModel.receiptImage {
+                            scannedPhotoCard(image: image)
+                        }
+                        
+                        if viewModel.captureMethod == "voice" && !viewModel.voiceTranscript.isEmpty {
+                            transcriptCard
+                        }
+                        
 //                        // Items section
 //                        itemsSection
 //                        
@@ -50,7 +59,7 @@ struct ReceiptEditView: View {
                     .padding(.top, 20)
                 }
             }
-            .navigationTitle("Edit Receipt")
+            .navigationTitle("Review")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -251,6 +260,69 @@ struct ReceiptEditView: View {
         )
     }
     
+    // MARK: - Conditional Content Views
+    
+    private func scannedPhotoCard(image: UIImage) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.blue)
+                
+                Text("Scanned Receipt")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+            }
+            
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .shadow(color: Color.black.opacity(0.06), radius: 16, x: 0, y: 8)
+        )
+    }
+    
+    private var transcriptCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "quote.bubble.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.orange)
+                
+                Text("What you said")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+            }
+            
+            Text(viewModel.voiceTranscript)
+                .font(.system(size: 16, weight: .regular))
+                .foregroundColor(.primary)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(.systemGray6))
+                )
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .shadow(color: Color.black.opacity(0.06), radius: 16, x: 0, y: 8)
+        )
+    }
+    
     private func saveReceipt() {
         isSaving = true
         
@@ -280,8 +352,8 @@ struct ReceiptEditView: View {
         confidence: .high
     )
     
-    return ReceiptEditView(
-        viewModel: ReceiptEditViewModel(
+    return ReceiptReviewView(
+        viewModel: ReceiptReviewViewModel(
             extractedData: extractedData,
             image: nil,
             viewContext: context
