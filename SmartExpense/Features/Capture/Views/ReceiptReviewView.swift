@@ -138,13 +138,16 @@ struct ReceiptReviewView: View {
                     .textCase(.uppercase)
                     .tracking(0.5)
                 
-                DatePicker("", selection: $viewModel.date, displayedComponents: [.date, .hourAndMinute])
-                    .labelsHidden()
-                    .padding(10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color(.systemGray6))
-                    )
+                HStack {
+                    DatePicker("", selection: $viewModel.date, displayedComponents: [.date, .hourAndMinute])
+                        .labelsHidden()
+                    Spacer()
+                }
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(.systemGray6))
+                )
             }
             
             // Total amount
