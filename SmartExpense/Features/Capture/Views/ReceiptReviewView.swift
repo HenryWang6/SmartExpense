@@ -130,49 +130,45 @@ struct ReceiptReviewView: View {
                     )
             }
             
-            HStack(spacing: 12) {
-                // Date
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Date")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                    
-                    DatePicker("", selection: $viewModel.date, displayedComponents: [.date, .hourAndMinute])
-                        .labelsHidden()
-                        .padding(10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color(.systemGray6))
-                        )
-                }
-                .frame(maxWidth: .infinity)
+            // Date
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Date")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
                 
-                // Total amount
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Total")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(0.5)
-                    
-                    HStack {
-                        Text("$")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(.secondary)
-                        
-                        TextField("0.00", text: $viewModel.totalAmount)
-                            .font(.system(size: 18, weight: .bold))
-                            .keyboardType(.decimalPad)
-                    }
-                    .padding(14)
+                DatePicker("", selection: $viewModel.date, displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+                    .padding(10)
                     .background(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(Color(.systemGray6))
                     )
+            }
+            
+            // Total amount
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Total Amount")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+                
+                HStack {
+                    Text("$")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    
+                    TextField("0.00", text: $viewModel.totalAmount)
+                        .font(.system(size: 18, weight: .bold))
+                        .keyboardType(.decimalPad)
                 }
-                .frame(maxWidth: .infinity)
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(.systemGray6))
+                )
             }
         }
         .padding(20)
