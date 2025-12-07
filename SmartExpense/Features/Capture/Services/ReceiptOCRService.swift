@@ -64,24 +64,22 @@ class ReceiptOCRService {
     
     // MARK: - Text Parsing
     
-    private func parseReceiptText(_ lines: [String]) -> ExtractedReceiptData {
+    // Internal for testing
+    func parseReceiptText(_ lines: [String]) -> ExtractedReceiptData {
         var merchantName: String?
         var date: Date?
         var totalAmount: Double?
-        var items: [ExtractedLineItem] = []
+        let items: [ExtractedLineItem] = [] // Line item extraction disabled for now
         var confidence: ExtractionConfidence = .low
         
-        // Extract merchant name (usually first few lines with substantial text)
+        // Extract merchant name
         merchantName = extractMerchantName(from: lines)
         
-        // Extract date
+        // Extract date and time
         date = extractDate(from: lines)
         
         // Extract total amount
         totalAmount = extractTotalAmount(from: lines)
-        
-        // Extract line items
-//        items = extractLineItems(from: lines)
         
         // Determine confidence
         let fieldsFound = [merchantName != nil, date != nil, totalAmount != nil].filter { $0 }.count
@@ -102,148 +100,175 @@ class ReceiptOCRService {
         )
     }
     
-    private func extractMerchantName(from lines: [String]) -> String? {
-        // Look for the first substantial line (more than 3 characters, not a number)
-        for line in lines.prefix(5) {
-            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.count > 3 && !trimmed.allSatisfy({ $0.isNumber || $0.isPunctuation }) {
-                return trimmed
-            }
-        }
-        return nil
-    }
-    
-    private func extractDate(from lines: [String]) -> Date? {
-        let datePatterns = [
-            "MM/dd/yyyy",
-            "MM-dd-yyyy",
-            "yyyy-MM-dd",
-            "dd/MM/yyyy",
-            "MMM dd, yyyy",
-            "MMMM dd, yyyy"
+    func extractMerchantName(from lines: [String]) -> String? {
+        // Common noise phrases on receipts - use substring matching
+        let invalidKeywords = [
+            "customer copy", "merchant copy", "receipt", "welcome", "copy", "duplicate", "credit card"
         ]
         
-        for line in lines {
-            for pattern in datePatterns {
-                let formatter = DateFormatter()
-                formatter.dateFormat = pattern
-                formatter.locale = Locale(identifier: "en_US_POSIX")
-                
-                // Try to find date pattern in the line
-                if let date = formatter.date(from: line) {
-                    return date
+        for line in lines.prefix(7) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lowerTrimmed = trimmed.lowercased()
+            
+            // Skip empty or very short lines
+            if trimmed.count <= 2 { continue }
+            
+            // Skip lines that are mostly numbers or symbols (phone numbers, dates, IDs)
+            let letterCount = trimmed.filter { $0.isLetter }.count
+            if letterCount < trimmed.count / 2 { continue }
+
+            // Check if line contains any invalid keywords
+            var isInvalid = false
+            for keyword in invalidKeywords {
+                if lowerTrimmed.contains(keyword) {
+                    isInvalid = true
+                    break
                 }
-                
-                // Try extracting date from parts of the line
-                let components = line.components(separatedBy: .whitespaces)
-                for component in components {
-                    if let date = formatter.date(from: component) {
-                        return date
+            }
+            if isInvalid { continue }
+            
+            return trimmed
+        }
+        return nil
+    }
+    
+    func extractDate(from lines: [String]) -> Date? {
+        var dateComponent: Date?
+        var timeComponent: DateComponents?
+        
+        // Date Patterns
+        let datePatterns = [
+             #"(?i)\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b"#,
+             #"\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b"#,
+             #"\b\d{4}[/.-]\d{1,2}[/.-]\d{1,2}\b"#
+        ]
+        
+        // Time Patterns
+        // Matches HH:MM AM/PM or HH:MM:SS
+        let timePattern = #"\b\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp][Mm])?\b"#
+        
+        for line in lines {
+            // Find Date
+            if dateComponent == nil {
+                for pattern in datePatterns {
+                    if let match = findMatch(in: line, pattern: pattern), let date = parseDateString(match) {
+                        dateComponent = date
+                        break
                     }
                 }
             }
+            
+            // Find Time
+            if timeComponent == nil {
+                if let match = findMatch(in: line, pattern: timePattern), let time = parseTimeString(match) {
+                    timeComponent = time
+                }
+            }
+            
+            if dateComponent != nil && timeComponent != nil { break }
+        }
+        
+        // Combine
+        if let date = dateComponent {
+            var calendar = Calendar.current
+            var components = calendar.dateComponents([.year, .month, .day], from: date)
+            if let time = timeComponent {
+                components.hour = time.hour
+                components.minute = time.minute
+                components.second = time.second
+            }
+            return calendar.date(from: components)
         }
         
         return nil
     }
     
-    private func extractTotalAmount(from lines: [String]) -> Double? {
-        let totalKeywords = ["total", "amount due", "balance", "grand total", "amount"]
+    func extractTotalAmount(from lines: [String]) -> Double? {
+        let totalKeywords = ["total", "balance", "amount due", "final", "payment", "grand total"]
+        let priceRegex = #"\$?\s?(\d{1,3}(?:,\d{3})*\.\d{2})"#
         
-        for (index, line) in lines.enumerated() {
-            let lowercased = line.lowercased()
-            
-            // Check if line contains total keyword
-            for keyword in totalKeywords {
-                if lowercased.contains(keyword) {
-                    // Look for amount in this line or next line
-                    if let amount = extractAmount(from: line) {
-                        return amount
-                    }
-                    
-                    // Check next line
-                    if index + 1 < lines.count {
-                        if let amount = extractAmount(from: lines[index + 1]) {
-                            return amount
-                        }
-                    }
+        var candidateAmounts: [Double] = []
+        var explicitTotal: Double?
+        
+        // Search from bottom up
+        for (index, line) in lines.enumerated().reversed() {
+            let lowerLine = line.lowercased()
+             
+            if let amount = extractPrice(from: line, regex: priceRegex) {
+                candidateAmounts.append(amount)
+                
+                // Check if this line is a "True Total" line
+                let isTotalLine = totalKeywords.contains { lowerLine.contains($0) }
+                
+                // Check immediate previous line (visually above) for keyword
+                // Since we iterate reversed, visual above is index - 1
+                var contextHasTotal = false
+                if index > 0 {
+                    let prevLine = lines[index - 1].lowercased()
+                    contextHasTotal = totalKeywords.contains { prevLine.contains($0) }
+                }
+                
+                if isTotalLine || contextHasTotal {
+                    explicitTotal = amount
+                    break // Found explicit total near bottom, likely correct
                 }
             }
         }
         
-        // Fallback: look for largest amount in the receipt
-        var maxAmount: Double = 0
-        for line in lines {
-            if let amount = extractAmount(from: line) {
-                maxAmount = max(maxAmount, amount)
-            }
+        if let total = explicitTotal {
+            return total
         }
         
-        return maxAmount > 0 ? maxAmount : nil
+        // Fallback: Return max value found
+        return candidateAmounts.max()
     }
     
-    private func extractAmount(from text: String) -> Double? {
-        // Pattern to match currency amounts: $12.34, 12.34, $12, etc.
-        let pattern = #"\\$?\\s*(\\d+[,\\d]*\\.?\\d{0,2})"#
-        
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
-            return nil
+    // MARK: - Helpers
+
+    private func findMatch(in text: String, pattern: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(location: 0, length: text.utf16.count)
+        if let match = regex.firstMatch(in: text, options: [], range: range) {
+             if let range = Range(match.range, in: text) {
+                 return String(text[range])
+             }
         }
-        
-        let nsString = text as NSString
-        let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsString.length))
-        
-        for match in matches {
-            if match.numberOfRanges > 1 {
-                let amountRange = match.range(at: 1)
-                let amountString = nsString.substring(with: amountRange)
-                    .replacingOccurrences(of: ",", with: "")
-                
-                if let amount = Double(amountString) {
-                    return amount
-                }
-            }
-        }
-        
         return nil
     }
     
-    private func extractLineItems(from lines: [String]) -> [ExtractedLineItem] {
-        var items: [ExtractedLineItem] = []
-        
-        for line in lines {
-            // Skip very short lines
-            if line.count < 3 {
-                continue
-            }
-            
-            // Look for lines with amounts (potential items)
-            if let amount = extractAmount(from: line) {
-                // Extract description (text before the amount)
-                let components = line.components(separatedBy: .whitespaces)
-                var description = ""
-                
-                for component in components {
-                    if extractAmount(from: component) == nil {
-                        description += component + " "
-                    }
-                }
-                
-                description = description.trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                if !description.isEmpty && description.count > 2 {
-                    items.append(ExtractedLineItem(
-                        description: description,
-                        quantity: 1.0,
-                        unitPrice: amount,
-                        subtotal: amount
-                    ))
-                }
-            }
+    private func parseDateString(_ dateString: String) -> Date? {
+        // Use NSDataDetector
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.date.rawValue) else { return nil }
+        let matches = detector.matches(in: dateString, options: [], range: NSRange(location: 0, length: dateString.utf16.count))
+        return matches.first?.date
+    }
+    
+    private func parseTimeString(_ timeString: String) -> DateComponents? {
+        // Mock a date to parse time
+        let tempString = "2025-01-01 " + timeString
+        if let date = parseDateString(tempString) {
+            return Calendar.current.dateComponents([.hour, .minute, .second], from: date)
         }
+        return nil
+    }
+    
+    private func extractPrice(from text: String, regex pattern: String) -> Double? {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(location: 0, length: text.utf16.count)
+        let matches = regex.matches(in: text, options: [], range: range)
         
-        // Limit to reasonable number of items
-        return Array(items.prefix(20))
+        // Usually the last match on a line is the final price (e.g. "Total ... $12.34")
+        if let lastMatch = matches.last {
+             if lastMatch.numberOfRanges > 1 {
+                 let range = lastMatch.range(at: 1)
+                 if let swiftRange = Range(range, in: text) {
+                     var amountStr = String(text[swiftRange])
+                     amountStr = amountStr.replacingOccurrences(of: ",", with: "")
+                     return Double(amountStr)
+                 }
+             }
+        }
+        return nil
     }
 }
 

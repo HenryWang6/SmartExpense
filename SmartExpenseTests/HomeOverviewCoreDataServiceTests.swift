@@ -27,7 +27,9 @@ class HomeOverviewCoreDataServiceTests: XCTestCase {
         createReceipt(amount: 50, date: Date())
         
         // When
-        let summary = try await service.loadCurrentSummary()
+        let start = Calendar.current.date(byAdding: .year, value: -1, to: Date())!
+        let end = Calendar.current.date(byAdding: .year, value: 1, to: Date())!
+        let summary = try await service.loadSummary(start: start, end: end, period: .monthly)
         
         // Then
         XCTAssertEqual(summary.totalSpend, 150)
@@ -43,7 +45,9 @@ class HomeOverviewCoreDataServiceTests: XCTestCase {
         createItem(receipt: r2, category: "Food", amount: 50)
         
         // When
-        let summary = try await service.loadCurrentSummary()
+        let start = Calendar.current.date(byAdding: .year, value: -1, to: Date())!
+        let end = Calendar.current.date(byAdding: .year, value: 1, to: Date())!
+        let summary = try await service.loadSummary(start: start, end: end, period: .monthly)
         
         // Then
         XCTAssertEqual(summary.topCategoryName, "Food")

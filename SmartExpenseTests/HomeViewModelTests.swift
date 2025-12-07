@@ -34,7 +34,7 @@ final class HomeViewModelTests: XCTestCase {
 // MARK: - Test Doubles
 
 private struct MockService: HomeOverviewServiceProtocol {
-    func loadCurrentSummary() async throws -> HomeSummary {
+    func loadSummary(start: Date, end: Date, period: HomePeriod) async throws -> HomeSummary {
         HomeSummary(
             periodDescription: "This Month",
             totalSpend: 123.45,
@@ -45,7 +45,8 @@ private struct MockService: HomeOverviewServiceProtocol {
             topCategoryName: "Food & Dining",
             topCategoryAmount: 70.0,
             biggestPurchase: (amount: 50.0, merchant: "Coffee Place", date: Date()),
-            categorySpending: [("Food & Dining", 70.0), ("Others", 53.45)]
+            categorySpending: [("Food & Dining", 70.0), ("Others", 53.45)],
+            spendingTrend: []
         )
     }
 }
