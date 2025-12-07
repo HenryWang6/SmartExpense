@@ -86,7 +86,7 @@ struct CaptureCoordinatorView: View {
                     let parsed = VoiceExpenseParser.parse(transcription)
                     extractedData = ExtractedReceiptData(
                         merchantName: parsed.merchant ?? "",
-                        date: Date(),
+                        date: parsed.date ?? Date(),
                         totalAmount: parsed.amount,
                         items: [],
                         confidence: .medium

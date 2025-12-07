@@ -12,17 +12,14 @@ struct HomeView: View {
             background
             
             VStack(spacing: 0) {
-                // Fixed Header Area
-                VStack(spacing: 16) {
-                    periodSelector
-                    periodDescriptionView
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 20)
-                .padding(.bottom, 10)
+                // Fixed Header Area - Only Period Selector
+                periodSelector
+                    .padding(.horizontal, 24)
+                    .padding(.top, 20)
+                    .padding(.bottom, 10)
                 
-                // Swipeable Content Area
-                mainContentView
+                // Swipeable Content Area - Period Description + All Content
+                swipeableContentArea
                     .id(viewModel.periodTitle) // Force recreation on period change
                     .transition(.asymmetric(
                         insertion: .move(edge: slideEdge),
@@ -129,42 +126,58 @@ struct HomeView: View {
         .animation(.easeInOut, value: viewModel.periodTitle)
     }
     
-    private var mainContentView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
-                totalSpendView
-                cardsGrid
-                categoryDistributionChart
-                spendingTrendChart
-                Spacer(minLength: 100)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 10)
-        }
-        .contentShape(Rectangle()) // Ensure the whole area is swipeable
-        .gesture(
-            DragGesture()
-                .onChanged { value in
-                    dragOffset = value.translation.width
+    private var swipeableContentArea: some View {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    // Period Description - now part of swipeable content
+                    periodDescriptionView
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 10)
+                    
+                    // Main Content
+                    VStack(alignment: .leading, spacing: 28) {
+                        totalSpendView
+                        cardsGrid
+                        categoryDistributionChart
+                        spendingTrendChart
+                        Spacer(minLength: 100)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 10)
                 }
-                .onEnded { value in
-                    let threshold: CGFloat = 50
-                    if value.translation.width > threshold {
-                        // Swipe Right -> Previous Period
-                        slideEdge = .leading // Enter from leading (left)
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            viewModel.movePeriod(by: -1)
+                .offset(x: dragOffset) // Apply drag offset to entire content
+            }
+            .contentShape(Rectangle()) // Ensure the whole area is swipeable
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        // Clamp drag offset to prevent excessive dragging
+                        let maxDrag = geometry.size.width * 0.3
+                        dragOffset = max(-maxDrag, min(maxDrag, value.translation.width))
+                    }
+                    .onEnded { value in
+                        let threshold: CGFloat = 50
+                        if value.translation.width > threshold {
+                            // Swipe Right -> Previous Period
+                            slideEdge = .leading // Enter from leading (left)
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                viewModel.movePeriod(by: -1)
+                            }
+                        } else if value.translation.width < -threshold {
+                            // Swipe Left -> Next Period
+                            slideEdge = .trailing // Enter from trailing (right)
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                viewModel.movePeriod(by: 1)
+                            }
                         }
-                    } else if value.translation.width < -threshold {
-                        // Swipe Left -> Next Period
-                        slideEdge = .trailing // Enter from trailing (right)
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            viewModel.movePeriod(by: 1)
+                        // Animate drag offset back to 0
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            dragOffset = 0
                         }
                     }
-                    dragOffset = 0
-                }
-        )
+            )
+        }
     }
 
     private var totalSpendView: some View {
@@ -187,7 +200,6 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .offset(x: dragOffset) // Visual feedback during drag
     }
 
     private var cardsGrid: some View {
@@ -262,7 +274,6 @@ struct HomeView: View {
                     .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
             )
         }
-        .offset(x: dragOffset)
     }
     
     private var categoryDistributionChart: some View {
@@ -289,7 +300,6 @@ struct HomeView: View {
                 .fill(Color(.secondarySystemGroupedBackground))
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
         )
-        .offset(x: dragOffset)
     }
 
     private var spendingTrendChart: some View {
@@ -350,7 +360,6 @@ struct HomeView: View {
                 .fill(Color(.secondarySystemGroupedBackground))
                 .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
         )
-        .offset(x: dragOffset)
     }
 
     private var captureButton: some View {

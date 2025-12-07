@@ -196,6 +196,10 @@ struct VoiceExpenseReviewView: View {
         if let merchant = parsed.merchant {
             merchantName = merchant
         }
+        
+        if let parsedDate = parsed.date {
+            date = parsedDate
+        }
     }
     
     private func saveExpense() {
