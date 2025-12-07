@@ -139,6 +139,7 @@ class ReceiptOCRService {
         // Date Patterns
         let datePatterns = [
              #"(?i)\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\b"#,
+             #"\b\d{1,2}-(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*-\d{4}\b"#, // DD-Mon-YYYY
              #"\b\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b"#,
              #"\b\d{4}[/.-]\d{1,2}[/.-]\d{1,2}\b"#
         ]
@@ -184,42 +185,45 @@ class ReceiptOCRService {
     }
     
     func extractTotalAmount(from lines: [String]) -> Double? {
-        let totalKeywords = ["total", "balance", "amount due", "final", "payment", "grand total"]
+        // Prioritize keywords - more specific ones first
+        let totalKeywords = ["order total", "grand total", "amount due", "balance due", "total", "balance", "final", "payment"]
         let priceRegex = #"\$?\s?(\d{1,3}(?:,\d{3})*\.\d{2})"#
         
-        var candidateAmounts: [Double] = []
         var explicitTotal: Double?
+        var candidateAmounts: [Double] = []
         
-        // Search from bottom up
-        for (index, line) in lines.enumerated().reversed() {
+        // First pass: Look for lines with BOTH keyword AND amount on the SAME line
+        for line in lines.reversed() {
             let lowerLine = line.lowercased()
-             
-            if let amount = extractPrice(from: line, regex: priceRegex) {
-                candidateAmounts.append(amount)
-                
-                // Check if this line is a "True Total" line
-                let isTotalLine = totalKeywords.contains { lowerLine.contains($0) }
-                
-                // Check immediate previous line (visually above) for keyword
-                // Since we iterate reversed, visual above is index - 1
-                var contextHasTotal = false
-                if index > 0 {
-                    let prevLine = lines[index - 1].lowercased()
-                    contextHasTotal = totalKeywords.contains { prevLine.contains($0) }
+            
+            // Check if line contains a total keyword
+            for keyword in totalKeywords {
+                if lowerLine.contains(keyword) {
+                    // Try to extract amount from THIS SAME LINE
+                    if let amount = extractPrice(from: line, regex: priceRegex) {
+                        explicitTotal = amount
+                        break
+                    }
                 }
-                
-                if isTotalLine || contextHasTotal {
-                    explicitTotal = amount
-                    break // Found explicit total near bottom, likely correct
-                }
+            }
+            
+            if explicitTotal != nil {
+                break
             }
         }
         
+        // If we found an explicit total on the same line as keyword, return it
         if let total = explicitTotal {
             return total
         }
         
-        // Fallback: Return max value found
+        // Second pass: Fallback to collecting all amounts and returning max
+        for line in lines {
+            if let amount = extractPrice(from: line, regex: priceRegex) {
+                candidateAmounts.append(amount)
+            }
+        }
+        
         return candidateAmounts.max()
     }
     
