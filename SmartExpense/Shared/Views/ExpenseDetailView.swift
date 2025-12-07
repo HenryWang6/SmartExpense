@@ -11,6 +11,13 @@ import CoreData
 struct ExpenseDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var receipt: Receipt
+    var onDateChanged: ((Date) -> Void)?
+    
+    @State private var isEditing = false
+    @State private var editedAmount: Double = 0.0
+    @State private var editedMerchant: String = ""
+    @State private var editedCategory: String = ""
+    @State private var editedDate: Date = Date()
     
     var body: some View {
         ZStack {
@@ -52,6 +59,57 @@ struct ExpenseDetailView: View {
         }
         .navigationTitle("Expense Details")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                if isEditing {
+                    HStack {
+                        Button("Discard") {
+                            withAnimation {
+                                isEditing = false
+                            }
+                        }
+                        Button("Save") {
+                            saveChanges()
+                            withAnimation {
+                                isEditing = false
+                            }
+                        }
+                        .fontWeight(.bold)
+                    }
+                } else {
+                    Button("Edit") {
+                        startEditing()
+                        withAnimation {
+                            isEditing = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func startEditing() {
+        editedAmount = receipt.totalAmount
+        editedMerchant = receipt.merchantName ?? ""
+        editedCategory = receipt.merchantCategory ?? ""
+        editedDate = receipt.date ?? Date()
+    }
+    
+    private func saveChanges() {
+        if receipt.date != editedDate {
+            onDateChanged?(editedDate)
+        }
+        
+        receipt.totalAmount = editedAmount
+        receipt.merchantName = editedMerchant
+        receipt.merchantCategory = editedCategory
+        receipt.date = editedDate
+        
+        do {
+            try viewContext.save()
+        } catch {
+            print("Error saving receipt: \(error)")
+        }
     }
     
     private var headerCard: some View {
@@ -62,14 +120,25 @@ struct ExpenseDetailView: View {
                 .textCase(.uppercase)
                 .tracking(0.5)
             
-            Text("$\(receipt.totalAmount, specifier: "%.2f")")
-                .font(.system(size: 40, weight: .bold, design: .rounded))
-                .foregroundColor(.primary)
-            
-            Text(receipt.date ?? Date(), formatter: dateFormatter)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.secondary)
-                .padding(.top, 4)
+            if isEditing {
+                TextField("0.00", value: $editedAmount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .keyboardType(.decimalPad)
+                    .foregroundColor(.primary)
+                
+                DatePicker("", selection: $editedDate, displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+            } else {
+                Text(receipt.totalAmount, format: .currency(code: Locale.current.currency?.identifier ?? "USD"))
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+                
+                Text(receipt.date ?? Date(), formatter: dateFormatter)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 32)
@@ -87,19 +156,45 @@ struct ExpenseDetailView: View {
                 .foregroundColor(.primary)
                 .padding(.horizontal, 4)
             
-            VStack(spacing: 0) {
-                detailRow(title: "Merchant", value: receipt.merchantName ?? "Unknown")
-                
-                Divider()
-                    .padding(.leading, 16)
-                
-                detailRow(title: "Category", value: receipt.merchantCategory?.isEmpty == false ? receipt.merchantCategory! : "Uncategorized")
+            if isEditing {
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Merchant")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                        TextField("Merchant Name", text: $editedMerchant)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Category")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                        TextField("Category", text: $editedCategory)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                    }
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+                )
+            } else {
+                VStack(spacing: 0) {
+                    detailRow(title: "Merchant", value: receipt.merchantName ?? "Unknown")
+                    
+                    Divider()
+                        .padding(.leading, 16)
+                    
+                    detailRow(title: "Category", value: receipt.merchantCategory?.isEmpty == false ? receipt.merchantCategory! : "Uncategorized")
+                }
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+                )
             }
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
-            )
         }
     }
     

@@ -98,10 +98,11 @@ struct CaptureCoordinatorView: View {
                 }
             }
         )) {
-            ImagePickerView(sourceType: .camera) { image in
+            DocumentScannerView { image in
                 selectedImage = image
                 captureState = .imagePreview
             }
+            .ignoresSafeArea()
         }
         .fullScreenCover(isPresented: Binding(
             get: { captureState == .photoLibrary },

@@ -58,7 +58,12 @@ struct HistoryView: View {
                             ) {
                                 ForEach(group.receipts) { receipt in
                                     NavigationLink {
-                                        ExpenseDetailView(receipt: receipt)
+                                        ExpenseDetailView(receipt: receipt, onDateChanged: { newDate in
+                                            let newSection = sectionName(for: newDate)
+                                            withAnimation {
+                                                expandedSections.insert(newSection)
+                                            }
+                                        })
                                     } label: {
                                         ExpenseRowView(receipt: receipt)
                                     }
@@ -115,54 +120,57 @@ struct HistoryView: View {
         
         var groups: [String: [Receipt]] = [:]
         
-        // Pre-calculate dates for comparison
+        // Calculate sections
         let currentMonthName = dateFormatter.string(from: now)
         
-        var previousMonths: [(date: Date, name: String)] = []
+        var previousMonths: [String] = []
         for i in 1...3 {
             if let date = calendar.date(byAdding: .month, value: -i, to: now) {
-                previousMonths.append((date, dateFormatter.string(from: date)))
+                previousMonths.append(dateFormatter.string(from: date))
             }
         }
         
-
         for receipt in receipts {
-             let receiptDate = receipt.date ?? Date()
-             let section: String
+            let section = sectionName(for: receipt.date ?? Date())
              
-             if calendar.isDateInToday(receiptDate) {
-                 section = "Today"
-             } else if calendar.isDate(receiptDate, equalTo: now, toGranularity: .weekOfYear) {
-                 section = "This Week"
-             } else if calendar.isDate(receiptDate, equalTo: now, toGranularity: .month) {
-                 section = currentMonthName
-             } else {
-                 var matched = false
-                 var tempSection = "Earlier"
-                 for monthData in previousMonths {
-                     if calendar.isDate(receiptDate, equalTo: monthData.date, toGranularity: .month) {
-                         tempSection = monthData.name
-                         matched = true
-                         break
-                     }
-                 }
-                 section = tempSection
-             }
-             
-             if groups[section] == nil {
-                 groups[section] = []
-             }
-             groups[section]?.append(receipt)
-         }
+            if groups[section] == nil {
+                groups[section] = []
+            }
+            groups[section]?.append(receipt)
+        }
          
-         var sectionOrder = ["Today", "This Week", currentMonthName]
-         sectionOrder.append(contentsOf: previousMonths.map { $0.name })
-         sectionOrder.append("Earlier")
+        var sectionOrder = ["Today", "This Week", currentMonthName]
+        sectionOrder.append(contentsOf: previousMonths)
+        sectionOrder.append("Earlier")
          
-         return sectionOrder.compactMap { sectionName in
-             guard let receipts = groups[sectionName], !receipts.isEmpty else { return nil }
-             return ReceiptGroup(section: sectionName, receipts: receipts)
-         }
+        return sectionOrder.compactMap { sectionName in
+            guard let receipts = groups[sectionName], !receipts.isEmpty else { return nil }
+            return ReceiptGroup(section: sectionName, receipts: receipts)
+        }
+    }
+    
+    private func sectionName(for date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "MMMM"
+        
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear) {
+            return "This Week"
+        } else if calendar.isDate(date, equalTo: now, toGranularity: .month) {
+            return dateFormatter.string(from: now)
+        } else {
+            // Check previous 3 months
+            for i in 1...3 {
+                if let prevDate = calendar.date(byAdding: .month, value: -i, to: now),
+                   calendar.isDate(date, equalTo: prevDate, toGranularity: .month) {
+                    return dateFormatter.string(from: prevDate)
+                }
+            }
+            return "Earlier"
+        }
     }
     
     private var emptyStateView: some View {
