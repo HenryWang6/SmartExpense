@@ -70,9 +70,10 @@ final class HomeViewModel: ObservableObject {
     }
 
     func onAppear() {
-        if case .idle = state {
-            Task { await load() }
-        }
+        // Set currentDateRange immediately so it's available for navigation
+        currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
+        
+        Task { await load() }
     }
 
     func refresh() {
@@ -82,6 +83,7 @@ final class HomeViewModel: ObservableObject {
     func selectPeriod(_ period: Period) {
         guard selectedPeriod != period else { return }
         selectedPeriod = period
+        currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
         updatePeriodTitle()
         Task { await load() }
     }
@@ -89,6 +91,7 @@ final class HomeViewModel: ObservableObject {
     func movePeriod(by value: Int) {
         guard let newDate = calendar.date(byAdding: component(for: selectedPeriod), value: value, to: currentReferenceDate) else { return }
         currentReferenceDate = newDate
+        currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
         updatePeriodTitle()
         Task { await load() }
     }

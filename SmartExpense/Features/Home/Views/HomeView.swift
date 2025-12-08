@@ -38,9 +38,7 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showingFilteredHistory) {
             if let filter = historyFilter {
-                NavigationView {
-                    HistoryView(filter: filter)
-                }
+                HistoryView(filter: filter)
             }
         }
     }
@@ -385,6 +383,7 @@ struct HomeView: View {
                 )
             }
             .buttonStyle(PlainButtonStyle())
+            .disabled(viewModel.topCategoryNameOnly == nil)
             
             // Biggest Purchase Card
             if let receiptId = viewModel.biggestPurchaseReceiptId,
@@ -540,7 +539,8 @@ struct HomeView: View {
                             Chart(viewModel.spendingTrend, id: \.date) { item in
                                 BarMark(
                                     x: .value("Date", item.date),
-                                    y: .value("Amount", item.amount)
+                                    y: .value("Amount", item.amount),
+                                    width: .fixed(40)
                                 )
                                 .cornerRadius(8)
                                 .foregroundStyle(

@@ -123,17 +123,19 @@ struct HistoryView: View {
             .navigationTitle("Expenses")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if !receipts.isEmpty {
-                        EditButton()
-                            .foregroundColor(.accentColor)
+                if filter == nil {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        if !receipts.isEmpty {
+                            EditButton()
+                                .foregroundColor(.accentColor)
+                        }
                     }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingCaptureFlow = true }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(.accentColor)
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: { showingCaptureFlow = true }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(.accentColor)
+                        }
                     }
                 }
             }
@@ -232,19 +234,6 @@ struct HistoryView: View {
                 .foregroundColor(.primary)
             
             Spacer()
-            
-            Button(action: {
-                // Dismiss the sheet to clear filter
-                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let window = windowScene.windows.first,
-                   let rootVC = window.rootViewController {
-                    rootVC.dismiss(animated: true)
-                }
-            }) {
-                Text("Clear")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.accentColor)
-            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
