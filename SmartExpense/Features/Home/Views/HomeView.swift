@@ -4,8 +4,8 @@ import Charts
 struct HomeView: View {
     @ObservedObject var viewModel: HomeViewModel
     @State private var showingCaptureFlow = false
-    @State private var slideEdge: Edge = .trailing
     @State private var dragOffset: CGFloat = 0
+    @State private var contentOpacity: Double = 1.0
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -21,10 +21,7 @@ struct HomeView: View {
                 // Swipeable Content Area - Period Description + All Content
                 swipeableContentArea
                     .id(viewModel.periodTitle) // Force recreation on period change
-                    .transition(.asymmetric(
-                        insertion: .move(edge: slideEdge),
-                        removal: .move(edge: slideEdge == .leading ? .trailing : .leading)
-                    ))
+                    .transition(.opacity)
             }
             
             captureButton
@@ -84,46 +81,144 @@ struct HomeView: View {
     @Namespace private var namespace
 
     private var periodDescriptionView: some View {
-        HStack(spacing: 0) {
-            // Previous Period
-            Text(viewModel.previousPeriodTitle)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.secondary.opacity(0.5))
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 4)
-                .id("PrevPeriod-\(viewModel.previousPeriodTitle)")
-                .transition(.opacity)
-            
-            // Current Period
-            HStack(spacing: 6) {
-                Text(viewModel.periodTitle)
-                    .font(.system(size: 16, weight: .medium))
+        GeometryReader { geometry in
+            ZStack {
+                // Previous Period - rotating in from left
+                Text(viewModel.previousPeriodTitle)
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
-                    .fixedSize()
-                    .id("PeriodTitle-\(viewModel.periodTitle)") // Animate text change
-                    .transition(.opacity)
+                    .id("PrevPeriod-\(viewModel.previousPeriodTitle)")
+                    .rotation3DEffect(
+                        .degrees(calculatePreviousRotation(dragOffset: dragOffset, width: geometry.size.width)),
+                        axis: (x: 0, y: 1, z: 0),
+                        anchor: .center,
+                        perspective: 0.5
+                    )
+                    .scaleEffect(calculatePreviousScale(dragOffset: dragOffset, width: geometry.size.width))
+                    .opacity(calculatePreviousPeriodOpacity(dragOffset: dragOffset, width: geometry.size.width))
+                    .offset(x: calculatePreviousOffset(dragOffset: dragOffset, width: geometry.size.width))
                 
-                if viewModel.state == .loading {
-                    ProgressView()
-                        .scaleEffect(0.7)
+                // Current Period - at center focal point
+                HStack(spacing: 6) {
+                    Text(viewModel.periodTitle)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .id("PeriodTitle-\(viewModel.periodTitle)")
+                    
+                    if viewModel.state == .loading {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                    }
                 }
+                .rotation3DEffect(
+                    .degrees(calculateCurrentRotation(dragOffset: dragOffset, width: geometry.size.width)),
+                    axis: (x: 0, y: 1, z: 0),
+                    anchor: .center,
+                    perspective: 0.5
+                )
+                .scaleEffect(calculateCurrentScale(dragOffset: dragOffset, width: geometry.size.width))
+                .opacity(calculateCurrentPeriodOpacity(dragOffset: dragOffset, width: geometry.size.width))
+                
+                // Next Period - rotating in from right
+                Text(viewModel.nextPeriodTitle)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .id("NextPeriod-\(viewModel.nextPeriodTitle)")
+                    .rotation3DEffect(
+                        .degrees(calculateNextRotation(dragOffset: dragOffset, width: geometry.size.width)),
+                        axis: (x: 0, y: 1, z: 0),
+                        anchor: .center,
+                        perspective: 0.5
+                    )
+                    .scaleEffect(calculateNextScale(dragOffset: dragOffset, width: geometry.size.width))
+                    .opacity(calculateNextPeriodOpacity(dragOffset: dragOffset, width: geometry.size.width))
+                    .offset(x: calculateNextOffset(dragOffset: dragOffset, width: geometry.size.width))
             }
-            .layoutPriority(1)
-            
-            // Next Period
-            Text(viewModel.nextPeriodTitle)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.secondary.opacity(0.5))
-                .lineLimit(1)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.trailing, 4)
-                .id("NextPeriod-\(viewModel.nextPeriodTitle)")
-                .transition(.opacity)
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
-        .animation(.easeInOut, value: viewModel.periodTitle)
+        .frame(height: 24)
+    }
+    
+    // MARK: - Previous Period Calculations
+    
+    private func calculatePreviousRotation(dragOffset: CGFloat, width: CGFloat) -> Double {
+        let ratio = Double(dragOffset / width)
+        // Rotate from -60° (hidden left) to 0° (center)
+        return -60.0 + (ratio * 60.0)
+    }
+    
+    private func calculatePreviousScale(dragOffset: CGFloat, width: CGFloat) -> Double {
+        let ratio = Double(dragOffset / width)
+        // Scale from 0.7 to 1.0 as it approaches center
+        return 0.7 + (ratio * 0.3)
+    }
+    
+    private func calculatePreviousOffset(dragOffset: CGFloat, width: CGFloat) -> CGFloat {
+        let ratio = dragOffset / width
+        // Move from left (-width/3) toward center (0)
+        return -(width / 3) * (1 - ratio)
+    }
+    
+    private func calculatePreviousPeriodOpacity(dragOffset: CGFloat, width: CGFloat) -> Double {
+        if dragOffset > 0 {
+            let ratio = Double(dragOffset / width)
+            // Fade in from 0 to 1 as it approaches center
+            return min(1.0, ratio * 3.0)
+        }
+        return 0.0
+    }
+    
+    // MARK: - Current Period Calculations
+    
+    private func calculateCurrentRotation(dragOffset: CGFloat, width: CGFloat) -> Double {
+        let ratio = Double(dragOffset / width)
+        // Rotate from 0° to ±60° as it moves away from center
+        return ratio * 60.0
+    }
+    
+    private func calculateCurrentScale(dragOffset: CGFloat, width: CGFloat) -> Double {
+        let normalizedDrag = Double(abs(dragOffset) / width)
+        // Scale from 1.0 down to 0.7 as it moves away
+        return max(0.7, 1.0 - normalizedDrag * 0.3)
+    }
+    
+    private func calculateCurrentPeriodOpacity(dragOffset: CGFloat, width: CGFloat) -> Double {
+        let normalizedDrag = Double(abs(dragOffset) / width)
+        // Fade from 1.0 to 0 as it moves away from center
+        return max(0.0, 1.0 - normalizedDrag * 3.0)
+    }
+    
+    // MARK: - Next Period Calculations
+    
+    private func calculateNextRotation(dragOffset: CGFloat, width: CGFloat) -> Double {
+        let ratio = Double(dragOffset / width)
+        // Rotate from 60° (hidden right) to 0° (center)
+        return 60.0 + (ratio * 60.0)
+    }
+    
+    private func calculateNextScale(dragOffset: CGFloat, width: CGFloat) -> Double {
+        let ratio = Double(abs(dragOffset) / width)
+        // Scale from 0.7 to 1.0 as it approaches center
+        return 0.7 + (ratio * 0.3)
+    }
+    
+    private func calculateNextOffset(dragOffset: CGFloat, width: CGFloat) -> CGFloat {
+        let ratio = abs(dragOffset) / width
+        // Move from right (width/3) toward center (0)
+        return (width / 3) * (1 - ratio)
+    }
+    
+    private func calculateNextPeriodOpacity(dragOffset: CGFloat, width: CGFloat) -> Double {
+        if dragOffset < 0 {
+            let ratio = Double(abs(dragOffset) / width)
+            // Fade in from 0 to 1 as it approaches center
+            return min(1.0, ratio * 3.0)
+        }
+        return 0.0
     }
     
     private var swipeableContentArea: some View {
@@ -145,6 +240,7 @@ struct HomeView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 10)
+                    .opacity(contentOpacity)
                 }
                 .offset(x: dragOffset) // Apply drag offset to entire content
             }
@@ -155,22 +251,48 @@ struct HomeView: View {
                         // Clamp drag offset to prevent excessive dragging
                         let maxDrag = geometry.size.width * 0.3
                         dragOffset = max(-maxDrag, min(maxDrag, value.translation.width))
+                        
+                        // Calculate content opacity based on drag distance
+                        let dragRatio = abs(value.translation.width) / geometry.size.width
+                        contentOpacity = max(0.3, 1.0 - dragRatio * 2)
                     }
                     .onEnded { value in
                         let threshold: CGFloat = 50
                         if value.translation.width > threshold {
                             // Swipe Right -> Previous Period
-                            slideEdge = .leading // Enter from leading (left)
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                contentOpacity = 0
+                            }
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                 viewModel.movePeriod(by: -1)
                             }
+                            // Fade back in
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                withAnimation(.easeIn(duration: 0.25)) {
+                                    contentOpacity = 1.0
+                                }
+                            }
                         } else if value.translation.width < -threshold {
                             // Swipe Left -> Next Period
-                            slideEdge = .trailing // Enter from trailing (right)
+                            withAnimation(.easeOut(duration: 0.25)) {
+                                contentOpacity = 0
+                            }
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                 viewModel.movePeriod(by: 1)
                             }
+                            // Fade back in
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                withAnimation(.easeIn(duration: 0.25)) {
+                                    contentOpacity = 1.0
+                                }
+                            }
+                        } else {
+                            // Didn't meet threshold, restore opacity
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                contentOpacity = 1.0
+                            }
                         }
+                        
                         // Animate drag offset back to 0
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             dragOffset = 0
