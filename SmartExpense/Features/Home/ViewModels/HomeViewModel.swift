@@ -1,10 +1,10 @@
 import Foundation
 import Combine
+import CoreData
 
 @MainActor
 final class HomeViewModel: ObservableObject {
     enum Period: String, CaseIterable, Identifiable {
-        case daily = "Daily"
         case weekly = "Weekly"
         case monthly = "Monthly"
         case yearly = "Yearly"
@@ -48,6 +48,10 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var biggestPurchaseAmount: String = "-"
     @Published private(set) var biggestPurchaseMerchant: String = "-"
     @Published private(set) var biggestPurchaseDate: String = "-"
+    @Published private(set) var biggestPurchaseReceiptId: NSManagedObjectID?
+    
+    @Published private(set) var topCategoryNameOnly: String?
+    @Published private(set) var currentDateRange: (start: Date, end: Date)?
     
     @Published private(set) var categorySpending: [(category: String, amount: Double)] = []
     @Published private(set) var spendingTrend: [(date: Date, amount: Double)] = []
@@ -93,6 +97,7 @@ final class HomeViewModel: ObservableObject {
         state = .loading
         do {
             let range = dateRange(for: selectedPeriod, date: currentReferenceDate)
+            currentDateRange = range
             let homePeriod = mapPeriod(selectedPeriod)
             
             let summary = try await service.loadSummary(start: range.start, end: range.end, period: homePeriod)
@@ -106,7 +111,6 @@ final class HomeViewModel: ObservableObject {
     
     private func mapPeriod(_ period: Period) -> HomePeriod {
         switch period {
-        case .daily: return .daily
         case .weekly: return .weekly
         case .monthly: return .monthly
         case .yearly: return .yearly
@@ -119,9 +123,6 @@ final class HomeViewModel: ObservableObject {
         var end: Date
         
         switch period {
-        case .daily:
-            start = calendar.startOfDay(for: date)
-            end = calendar.date(byAdding: .day, value: 1, to: start)!.addingTimeInterval(-1)
         case .weekly:
             let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
             start = calendar.date(from: components)!
@@ -168,13 +169,16 @@ final class HomeViewModel: ObservableObject {
            let amount = summary.topCategoryAmount,
            let amountText = currencyFormatter.string(from: amount as NSDecimalNumber) {
             topCategoryTitle = "\(categoryName) – \(amountText)"
+            topCategoryNameOnly = categoryName
         } else {
             topCategoryTitle = "No category data yet"
+            topCategoryNameOnly = nil
         }
         
         if let biggest = summary.biggestPurchase {
             biggestPurchaseAmount = currencyFormatter.string(from: biggest.amount as NSDecimalNumber) ?? "-"
             biggestPurchaseMerchant = biggest.merchant
+            biggestPurchaseReceiptId = summary.biggestPurchaseReceiptId
             
             let dateFormatter = DateFormatter()
             dateFormatter.dateStyle = .medium
@@ -183,6 +187,7 @@ final class HomeViewModel: ObservableObject {
             biggestPurchaseAmount = "-"
             biggestPurchaseMerchant = "-"
             biggestPurchaseDate = "-"
+            biggestPurchaseReceiptId = nil
         }
         
         categorySpending = summary.categorySpending.map { ($0.category, NSDecimalNumber(decimal: $0.amount).doubleValue) }
@@ -209,15 +214,6 @@ final class HomeViewModel: ObservableObject {
         let formatter = DateFormatter()
         
         switch period {
-        case .daily:
-            if calendar.isDateInToday(date) {
-                return "Today"
-            } else if calendar.isDateInYesterday(date) {
-                return "Yesterday"
-            } else {
-                formatter.dateStyle = .medium
-                return formatter.string(from: date)
-            }
         case .weekly:
             // Show "Oct 22 - Oct 28"
             // Find start and end of week
@@ -240,7 +236,6 @@ final class HomeViewModel: ObservableObject {
     
     private func component(for period: Period) -> Calendar.Component {
         switch period {
-        case .daily: return .day
         case .weekly: return .weekOfYear
         case .monthly: return .month
         case .yearly: return .year

@@ -1,9 +1,14 @@
 import SwiftUI
 import Charts
+import CoreData
 
 struct HomeView: View {
+    @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var viewModel: HomeViewModel
     @State private var showingCaptureFlow = false
+    @State private var showingFilteredHistory = false
+    @State private var historyFilter: HistoryFilter?
+    @State private var selectedCategory: String?
     @State private var dragOffset: CGFloat = 0
     @State private var contentOpacity: Double = 1.0
 
@@ -30,6 +35,13 @@ struct HomeView: View {
         }
         .onAppear {
             viewModel.onAppear()
+        }
+        .sheet(isPresented: $showingFilteredHistory) {
+            if let filter = historyFilter {
+                NavigationView {
+                    HistoryView(filter: filter)
+                }
+            }
         }
     }
 
@@ -234,8 +246,8 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 28) {
                         totalSpendView
                         cardsGrid
-                        categoryDistributionChart
                         spendingTrendChart
+                        categoryDistributionChart
                         Spacer(minLength: 100)
                     }
                     .padding(.horizontal, 24)
@@ -327,74 +339,127 @@ struct HomeView: View {
     private var cardsGrid: some View {
         HStack(spacing: 16) {
             // Top Category Card
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "tag.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.purple)
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(Color.purple.opacity(0.15)))
-                    Spacer()
+            Button(action: {
+                if let category = viewModel.topCategoryNameOnly,
+                   let dateRange = viewModel.currentDateRange {
+                    historyFilter = HistoryFilter(
+                        category: category,
+                        dateRange: dateRange,
+                        receiptId: nil
+                    )
+                    showingFilteredHistory = true
                 }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Top Category")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
+            }) {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "tag.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.purple)
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(Color.purple.opacity(0.15)))
+                        Spacer()
+                    }
                     
-                    Text(viewModel.topCategoryTitle.components(separatedBy: " – ").first ?? "-")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                    
-                    Text(viewModel.topCategoryTitle.components(separatedBy: " – ").last ?? "-")
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Top Category")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                        
+                        Text(viewModel.topCategoryTitle.components(separatedBy: " – ").first ?? "-")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                        
+                        Text(viewModel.topCategoryTitle.components(separatedBy: " – ").last ?? "-")
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundColor(.secondary)
+                    }
                 }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(.secondarySystemGroupedBackground))
+                        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+                )
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
-                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-            )
+            .buttonStyle(PlainButtonStyle())
             
             // Biggest Purchase Card
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Image(systemName: "cart.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(.orange)
-                        .frame(width: 32, height: 32)
-                        .background(Circle().fill(Color.orange.opacity(0.15)))
-                    Spacer()
+            if let receiptId = viewModel.biggestPurchaseReceiptId,
+               let receipt = try? viewContext.existingObject(with: receiptId) as? Receipt {
+                NavigationLink(destination: ExpenseDetailView(receipt: receipt, onDateChanged: nil)) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "cart.fill")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(.orange)
+                                .frame(width: 32, height: 32)
+                                .background(Circle().fill(Color.orange.opacity(0.15)))
+                            Spacer()
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Biggest Purchase")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .textCase(.uppercase)
+                            
+                            Text(viewModel.biggestPurchaseAmount)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.primary)
+                            
+                            Text(viewModel.biggestPurchaseMerchant)
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(Color(.secondarySystemGroupedBackground))
+                            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+                    )
                 }
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Biggest Purchase")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
+                .buttonStyle(PlainButtonStyle())
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "cart.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.orange)
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(Color.orange.opacity(0.15)))
+                        Spacer()
+                    }
                     
-                    Text(viewModel.biggestPurchaseAmount)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.primary)
-                    
-                    Text(viewModel.biggestPurchaseMerchant)
-                        .font(.system(size: 14, weight: .regular))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Biggest Purchase")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                        
+                        Text(viewModel.biggestPurchaseAmount)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.primary)
+                        
+                        Text(viewModel.biggestPurchaseMerchant)
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
                 }
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(.secondarySystemGroupedBackground))
+                        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+                )
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
-                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-            )
         }
     }
     
@@ -412,9 +477,42 @@ struct HomeView: View {
                 )
                 .cornerRadius(5)
                 .foregroundStyle(by: .value("Category", item.category))
+                .opacity(selectedCategory == nil || selectedCategory == item.category ? 1.0 : 0.3)
+                .annotation(position: .overlay) {
+                    VStack(spacing: 2) {
+                        Text(item.category)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                        
+                        Text("$\(Int(item.amount))")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    .padding(4)
+                }
             }
             .frame(height: 220)
-            .chartLegend(position: .bottom, spacing: 20)
+            .chartAngleSelection(value: $selectedCategory)
+            .chartBackground { chartProxy in
+                GeometryReader { geometry in
+                    if let selectedCategory = selectedCategory,
+                       let selectedItem = viewModel.categorySpending.first(where: { $0.category == selectedCategory }) {
+                        VStack(spacing: 4) {
+                            Text(selectedItem.category)
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.primary)
+                            
+                            Text("$\(Int(selectedItem.amount))")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        }
+                        .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    }
+                }
+            }
+            .chartLegend(.hidden)
         }
         .padding(20)
         .background(
@@ -436,44 +534,79 @@ struct HomeView: View {
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 200)
             } else {
-                Chart(viewModel.spendingTrend, id: \.date) { item in
-                    LineMark(
-                        x: .value("Date", item.date),
-                        y: .value("Amount", item.amount)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.accentColor)
-                    
-                    AreaMark(
-                        x: .value("Date", item.date),
-                        y: .value("Amount", item.amount)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            Chart(viewModel.spendingTrend, id: \.date) { item in
+                                BarMark(
+                                    x: .value("Date", item.date),
+                                    y: .value("Amount", item.amount)
+                                )
+                                .cornerRadius(8)
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.accentColor,
+                                            Color.accentColor.opacity(0.7)
+                                        ],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .annotation(position: .top, alignment: .center) {
+                                    if item.amount > 0 {
+                                        Text("$\(Int(item.amount))")
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                            .frame(width: max(geometry.size.width, CGFloat(viewModel.spendingTrend.count) * 60))
+                            .frame(height: 220)
+                            .chartXAxis {
+                                AxisMarks(values: .automatic) { value in
+                                    AxisGridLine()
+                                    AxisTick()
+                                    if viewModel.selectedPeriod == .monthly {
+                                        AxisValueLabel(format: .dateTime.month())
+                                    } else if viewModel.selectedPeriod == .weekly {
+                                        AxisValueLabel(format: .dateTime.month().day())
+                                    }
+                                }
+                            }
+                            .chartYAxis {
+                                AxisMarks(position: .leading)
+                            }
+                            .defaultScrollAnchor(.trailing)
+                        }
+                        
+                        // Left fade indicator
                         LinearGradient(
                             colors: [
-                                Color.accentColor.opacity(0.3),
-                                Color.accentColor.opacity(0.0)
+                                Color(.secondarySystemGroupedBackground),
+                                Color(.secondarySystemGroupedBackground).opacity(0)
                             ],
-                            startPoint: .top,
-                            endPoint: .bottom
+                            startPoint: .leading,
+                            endPoint: .trailing
                         )
-                    )
-                }
-                .frame(height: 220)
-                .chartXAxis {
-                    AxisMarks(values: .automatic) { value in
-                        AxisGridLine()
-                        AxisTick()
-                        if viewModel.selectedPeriod == .monthly {
-                            AxisValueLabel(format: .dateTime.month())
-                        } else if viewModel.selectedPeriod == .weekly {
-                            AxisValueLabel(format: .dateTime.month().day())
-                        } else {
-                            AxisValueLabel(format: .dateTime.day())
-                        }
+                        .frame(width: 20)
+                        .allowsHitTesting(false)
+                        
+                        // Right fade indicator
+                        LinearGradient(
+                            colors: [
+                                Color(.secondarySystemGroupedBackground).opacity(0),
+                                Color(.secondarySystemGroupedBackground)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .frame(width: 20)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .allowsHitTesting(false)
                     }
                 }
+                .frame(height: 220)
             }
         }
         .padding(20)

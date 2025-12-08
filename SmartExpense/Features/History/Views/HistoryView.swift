@@ -19,9 +19,31 @@ struct HistoryView: View {
     @State private var showingCaptureFlow = false
     @State private var expandedSections: Set<String> = []
     
-    // Initializer to set default expanded sections
-    init() {
+    let filter: HistoryFilter?
+    
+    // Initializer to set default expanded sections and optional filter
+    init(filter: HistoryFilter? = nil) {
+        self.filter = filter
         _expandedSections = State(initialValue: Set(["Today", "This Week"]))
+        
+        // Build predicate based on filter
+        var predicates: [NSPredicate] = []
+        
+        if let category = filter?.category {
+            predicates.append(NSPredicate(format: "merchantCategory == %@", category))
+        }
+        
+        if let dateRange = filter?.dateRange {
+            predicates.append(NSPredicate(format: "date >= %@ AND date <= %@", dateRange.start as NSDate, dateRange.end as NSDate))
+        }
+        
+        let finalPredicate = predicates.isEmpty ? nil : NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        
+        _receipts = FetchRequest(
+            sortDescriptors: [NSSortDescriptor(keyPath: \Receipt.date, ascending: false)],
+            predicate: finalPredicate,
+            animation: .default
+        )
     }
 
 
@@ -42,51 +64,60 @@ struct HistoryView: View {
                 if receipts.isEmpty {
                     emptyStateView
                 } else {
-                    List {
-                        ForEach(groupedReceipts, id: \.section) { group in
-                            DisclosureGroup(
-                                isExpanded: Binding(
-                                    get: { expandedSections.contains(group.section) },
-                                    set: { isExpanded in
-                                        if isExpanded {
-                                            expandedSections.insert(group.section)
-                                        } else {
-                                            expandedSections.remove(group.section)
-                                        }
-                                    }
-                                )
-                            ) {
-                                ForEach(group.receipts) { receipt in
-                                    NavigationLink {
-                                        ExpenseDetailView(receipt: receipt, onDateChanged: { newDate in
-                                            let newSection = sectionName(for: newDate)
-                                            withAnimation {
-                                                expandedSections.insert(newSection)
+                    VStack(spacing: 0) {
+                        // Filter Banner
+                        if let filter = filter {
+                            filterBanner(filter: filter)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 8)
+                        }
+                        
+                        List {
+                            ForEach(groupedReceipts, id: \.section) { group in
+                                DisclosureGroup(
+                                    isExpanded: Binding(
+                                        get: { expandedSections.contains(group.section) },
+                                        set: { isExpanded in
+                                            if isExpanded {
+                                                expandedSections.insert(group.section)
+                                            } else {
+                                                expandedSections.remove(group.section)
                                             }
-                                        })
-                                    } label: {
-                                        ExpenseRowView(receipt: receipt)
-                                    }
-                                    .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
-                                    .listRowBackground(
-                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                            .fill(.ultraThinMaterial)
+                                        }
                                     )
+                                ) {
+                                    ForEach(group.receipts) { receipt in
+                                        NavigationLink {
+                                            ExpenseDetailView(receipt: receipt, onDateChanged: { newDate in
+                                                let newSection = sectionName(for: newDate)
+                                                withAnimation {
+                                                    expandedSections.insert(newSection)
+                                                }
+                                            })
+                                        } label: {
+                                            ExpenseRowView(receipt: receipt)
+                                        }
+                                        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+                                        .listRowBackground(
+                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                .fill(.ultraThinMaterial)
+                                        )
+                                    }
+                                    .onDelete { offsets in
+                                        deleteReceipts(from: group, at: offsets)
+                                    }
+                                } label: {
+                                    Text(group.section)
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.secondary)
+                                        .textCase(.uppercase)
+                                        .tracking(0.5)
                                 }
-                                .onDelete { offsets in
-                                    deleteReceipts(from: group, at: offsets)
-                                }
-                            } label: {
-                                Text(group.section)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.secondary)
-                                    .textCase(.uppercase)
-                                    .tracking(0.5)
                             }
                         }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
                 }
             }
             .navigationTitle("Expenses")
@@ -191,6 +222,37 @@ struct HistoryView: View {
         }
     }
     
+    private func filterBanner(filter: HistoryFilter) -> some View {
+        HStack {
+            Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                .foregroundColor(.accentColor)
+            
+            Text("Showing: \(filter.displayText)")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.primary)
+            
+            Spacer()
+            
+            Button(action: {
+                // Dismiss the sheet to clear filter
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let window = windowScene.windows.first,
+                   let rootVC = window.rootViewController {
+                    rootVC.dismiss(animated: true)
+                }
+            }) {
+                Text("Clear")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.accentColor)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.accentColor.opacity(0.1))
+        )
+    }
 
 
 

@@ -21,6 +21,7 @@ struct HomeOverviewMockService: HomeOverviewServiceProtocol {
             topCategoryName: "Food & Dining",
             topCategoryAmount: 530.20,
             biggestPurchase: (amount: 120.50, merchant: "Tech Store", date: Date().addingTimeInterval(-86400 * 3)),
+            biggestPurchaseReceiptId: nil,
             categorySpending: [
                 ("Food & Dining", 530.20),
                 ("Shopping", 320.50),

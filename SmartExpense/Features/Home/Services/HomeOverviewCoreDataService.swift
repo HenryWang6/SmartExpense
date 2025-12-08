@@ -58,24 +58,18 @@ struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol {
         
         let topCategory = categoryMap.max(by: { $0.value < $1.value })
         
-        let sortedCategories = categoryMap.sorted(by: { $0.value > $1.value })
-        var finalCategories: [(String, Decimal)] = []
-        
-        if sortedCategories.count > 5 {
-            finalCategories = Array(sortedCategories.prefix(4))
-            let othersSum = sortedCategories.suffix(from: 4).reduce(Decimal(0)) { $0 + $1.value }
-            finalCategories.append(("Others", othersSum))
-        } else {
-            finalCategories = sortedCategories
-        }
+        let sortedCategories = categoryMap.sorted(by: { $0.value > $1.value }).map { (category: $0.key, amount: $0.value) }
         
         // 7. Biggest Purchase
         let biggestReceipt = receipts.max(by: { $0.totalAmount < $1.totalAmount })
         let biggestPurchaseData: (amount: Decimal, merchant: String, date: Date)?
+        let biggestPurchaseId: NSManagedObjectID?
         if let biggest = biggestReceipt {
             biggestPurchaseData = (Decimal(biggest.totalAmount), biggest.merchantName ?? "Unknown", biggest.date ?? Date())
+            biggestPurchaseId = biggest.objectID
         } else {
             biggestPurchaseData = nil
+            biggestPurchaseId = nil
         }
         
         // 8. Spending Trend
@@ -91,7 +85,8 @@ struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol {
             topCategoryName: topCategory?.key,
             topCategoryAmount: topCategory?.value,
             biggestPurchase: biggestPurchaseData,
-            categorySpending: finalCategories,
+            biggestPurchaseReceiptId: biggestPurchaseId,
+            categorySpending: sortedCategories,
             spendingTrend: trend
         )
     }
@@ -114,11 +109,6 @@ struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol {
             count = 12
             component = .weekOfYear
             trendStart = calendar.date(byAdding: .weekOfYear, value: -11, to: currentStart)!
-        case .daily:
-            // Past 30 days
-            count = 30
-            component = .day
-            trendStart = calendar.date(byAdding: .day, value: -29, to: currentStart)!
         case .yearly:
             return []
         }
@@ -143,8 +133,6 @@ struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol {
             case .weekly:
                 let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
                 normalizedDate = calendar.date(from: components)!
-            case .daily:
-                normalizedDate = calendar.startOfDay(for: date)
             case .yearly:
                 continue
             }
