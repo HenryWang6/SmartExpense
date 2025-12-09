@@ -65,8 +65,9 @@ final class HomeViewModel: ObservableObject {
         self.service = service
         self.currencyFormatter = currencyFormatter
         
-        // Initialize period title
+        // Initialize period title and date range immediately so they're available for navigation
         updatePeriodTitle()
+        currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
     }
 
     func onAppear() {
@@ -125,19 +126,23 @@ final class HomeViewModel: ObservableObject {
         var start: Date
         var end: Date
         
+        // Default fallbacks to prevent crashes if date math fails
+        let fallbackStart = date
+        let fallbackEnd = date
+
         switch period {
         case .weekly:
             let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
-            start = calendar.date(from: components)!
-            end = calendar.date(byAdding: .weekOfYear, value: 1, to: start)!.addingTimeInterval(-1)
+            start = calendar.date(from: components) ?? fallbackStart
+            end = calendar.date(byAdding: .weekOfYear, value: 1, to: start)?.addingTimeInterval(-1) ?? fallbackEnd
         case .monthly:
             let components = calendar.dateComponents([.year, .month], from: date)
-            start = calendar.date(from: components)!
-            end = calendar.date(byAdding: .month, value: 1, to: start)!.addingTimeInterval(-1)
+            start = calendar.date(from: components) ?? fallbackStart
+            end = calendar.date(byAdding: .month, value: 1, to: start)?.addingTimeInterval(-1) ?? fallbackEnd
         case .yearly:
             let components = calendar.dateComponents([.year], from: date)
-            start = calendar.date(from: components)!
-            end = calendar.date(byAdding: .year, value: 1, to: start)!.addingTimeInterval(-1)
+            start = calendar.date(from: components) ?? fallbackStart
+            end = calendar.date(byAdding: .year, value: 1, to: start)?.addingTimeInterval(-1) ?? fallbackEnd
         }
         
         return (start, end)

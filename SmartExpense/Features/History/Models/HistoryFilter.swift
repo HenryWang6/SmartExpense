@@ -1,7 +1,8 @@
 import Foundation
 import CoreData
 
-struct HistoryFilter {
+struct HistoryFilter: Identifiable {
+    let id = UUID()
     let category: String?
     let dateRange: (start: Date, end: Date)?
     let receiptId: NSManagedObjectID?

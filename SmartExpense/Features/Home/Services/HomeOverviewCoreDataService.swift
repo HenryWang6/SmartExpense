@@ -2,14 +2,16 @@ import Foundation
 import CoreData
 import SwiftUI
 
-struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol {
+struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol, @unchecked Sendable {
     private let viewContext: NSManagedObjectContext
     private let calendar = Calendar.current
     
+    @MainActor
     init(viewContext: NSManagedObjectContext) {
         self.viewContext = viewContext
     }
     
+    @MainActor
     func loadSummary(start: Date, end: Date, period: HomePeriod) async throws -> HomeSummary {
         // 1. Fetch Receipts in range for the main summary
         let request = Receipt.fetchRequest()
@@ -103,12 +105,12 @@ struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol {
             // Past 6 periods (including current)
             count = 6
             component = .month
-            trendStart = calendar.date(byAdding: .month, value: -5, to: currentStart)!
+            trendStart = calendar.date(byAdding: .month, value: -5, to: currentStart) ?? currentStart
         case .weekly:
             // Past 12 weeks
             count = 12
             component = .weekOfYear
-            trendStart = calendar.date(byAdding: .weekOfYear, value: -11, to: currentStart)!
+            trendStart = calendar.date(byAdding: .weekOfYear, value: -11, to: currentStart) ?? currentStart
         case .yearly:
             return []
         }
@@ -129,10 +131,12 @@ struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol {
             switch period {
             case .monthly:
                 let components = calendar.dateComponents([.year, .month], from: date)
-                normalizedDate = calendar.date(from: components)!
+                guard let d = calendar.date(from: components) else { continue }
+                normalizedDate = d
             case .weekly:
                 let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
-                normalizedDate = calendar.date(from: components)!
+                guard let d = calendar.date(from: components) else { continue }
+                normalizedDate = d
             case .yearly:
                 continue
             }
@@ -142,9 +146,10 @@ struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol {
         
         // Generate all data points (fill with 0 if missing)
         for i in 0..<count {
-            let date = calendar.date(byAdding: component, value: i, to: trendStart)!
-            let amount = groupedSpending[date] ?? 0
-            trendData.append((date, amount))
+            if let date = calendar.date(byAdding: component, value: i, to: trendStart) {
+                let amount = groupedSpending[date] ?? 0
+                trendData.append((date, amount))
+            }
         }
         
         return trendData

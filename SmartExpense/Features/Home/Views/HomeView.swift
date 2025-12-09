@@ -6,38 +6,37 @@ struct HomeView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var viewModel: HomeViewModel
     @State private var showingCaptureFlow = false
-    @State private var showingFilteredHistory = false
     @State private var historyFilter: HistoryFilter?
     @State private var selectedCategory: String?
     @State private var dragOffset: CGFloat = 0
     @State private var contentOpacity: Double = 1.0
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            background
-            
-            VStack(spacing: 0) {
-                // Fixed Header Area - Only Period Selector
-                periodSelector
-                    .padding(.horizontal, 24)
-                    .padding(.top, 20)
-                    .padding(.bottom, 10)
+        NavigationStack {
+            ZStack(alignment: .bottomTrailing) {
+                background
                 
-                // Swipeable Content Area - Period Description + All Content
-                swipeableContentArea
-                    .id(viewModel.periodTitle) // Force recreation on period change
-                    .transition(.opacity)
+                VStack(spacing: 0) {
+                    // Fixed Header Area - Only Period Selector
+                    periodSelector
+                        .padding(.horizontal, 24)
+                        .padding(.top, 20)
+                        .padding(.bottom, 10)
+                    
+                    // Swipeable Content Area - Period Description + All Content
+                    swipeableContentArea
+                        .id(viewModel.periodTitle) // Force recreation on period change
+                        .transition(.opacity)
+                }
+                
+                captureButton
+                    .padding(.trailing, 24)
+                    .padding(.bottom, 40)
             }
-            
-            captureButton
-                .padding(.trailing, 24)
-                .padding(.bottom, 40)
-        }
-        .onAppear {
-            viewModel.onAppear()
-        }
-        .sheet(isPresented: $showingFilteredHistory) {
-            if let filter = historyFilter {
+            .onAppear {
+                viewModel.onAppear()
+            }
+            .sheet(item: $historyFilter) { filter in
                 HistoryView(filter: filter)
             }
         }
@@ -156,24 +155,28 @@ struct HomeView: View {
     // MARK: - Previous Period Calculations
     
     private func calculatePreviousRotation(dragOffset: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return -60.0 }
         let ratio = Double(dragOffset / width)
         // Rotate from -60° (hidden left) to 0° (center)
         return -60.0 + (ratio * 60.0)
     }
     
     private func calculatePreviousScale(dragOffset: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return 0.7 }
         let ratio = Double(dragOffset / width)
         // Scale from 0.7 to 1.0 as it approaches center
         return 0.7 + (ratio * 0.3)
     }
     
     private func calculatePreviousOffset(dragOffset: CGFloat, width: CGFloat) -> CGFloat {
+        guard width > 0 else { return 0 }
         let ratio = dragOffset / width
         // Move from left (-width/3) toward center (0)
         return -(width / 3) * (1 - ratio)
     }
     
     private func calculatePreviousPeriodOpacity(dragOffset: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return 0.0 }
         if dragOffset > 0 {
             let ratio = Double(dragOffset / width)
             // Fade in from 0 to 1 as it approaches center
@@ -185,18 +188,21 @@ struct HomeView: View {
     // MARK: - Current Period Calculations
     
     private func calculateCurrentRotation(dragOffset: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return 0.0 }
         let ratio = Double(dragOffset / width)
         // Rotate from 0° to ±60° as it moves away from center
         return ratio * 60.0
     }
     
     private func calculateCurrentScale(dragOffset: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return 1.0 }
         let normalizedDrag = Double(abs(dragOffset) / width)
         // Scale from 1.0 down to 0.7 as it moves away
         return max(0.7, 1.0 - normalizedDrag * 0.3)
     }
     
     private func calculateCurrentPeriodOpacity(dragOffset: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return 1.0 }
         let normalizedDrag = Double(abs(dragOffset) / width)
         // Fade from 1.0 to 0 as it moves away from center
         return max(0.0, 1.0 - normalizedDrag * 3.0)
@@ -205,24 +211,28 @@ struct HomeView: View {
     // MARK: - Next Period Calculations
     
     private func calculateNextRotation(dragOffset: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return 60.0 }
         let ratio = Double(dragOffset / width)
         // Rotate from 60° (hidden right) to 0° (center)
         return 60.0 + (ratio * 60.0)
     }
     
     private func calculateNextScale(dragOffset: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return 0.7 }
         let ratio = Double(abs(dragOffset) / width)
         // Scale from 0.7 to 1.0 as it approaches center
         return 0.7 + (ratio * 0.3)
     }
     
     private func calculateNextOffset(dragOffset: CGFloat, width: CGFloat) -> CGFloat {
+        guard width > 0 else { return 0 }
         let ratio = abs(dragOffset) / width
         // Move from right (width/3) toward center (0)
         return (width / 3) * (1 - ratio)
     }
     
     private func calculateNextPeriodOpacity(dragOffset: CGFloat, width: CGFloat) -> Double {
+        guard width > 0 else { return 0.0 }
         if dragOffset < 0 {
             let ratio = Double(abs(dragOffset) / width)
             // Fade in from 0 to 1 as it approaches center
@@ -263,7 +273,9 @@ struct HomeView: View {
                         dragOffset = max(-maxDrag, min(maxDrag, value.translation.width))
                         
                         // Calculate content opacity based on drag distance
-                        let dragRatio = abs(value.translation.width) / geometry.size.width
+                        // Use a safe width to avoid division by zero
+                        let safeWidth = max(1.0, geometry.size.width)
+                        let dragRatio = abs(value.translation.width) / safeWidth
                         contentOpacity = max(0.3, 1.0 - dragRatio * 2)
                     }
                     .onEnded { value in
@@ -345,7 +357,6 @@ struct HomeView: View {
                         dateRange: dateRange,
                         receiptId: nil
                     )
-                    showingFilteredHistory = true
                 }
             }) {
                 VStack(alignment: .leading, spacing: 12) {
@@ -397,6 +408,10 @@ struct HomeView: View {
                                 .frame(width: 32, height: 32)
                                 .background(Circle().fill(Color.orange.opacity(0.15)))
                             Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.secondary.opacity(0.5))
                         }
                         
                         VStack(alignment: .leading, spacing: 4) {
