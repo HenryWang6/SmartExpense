@@ -5,9 +5,9 @@ import CoreData
 @MainActor
 final class HomeViewModel: ObservableObject {
     enum Period: String, CaseIterable, Identifiable {
-        case weekly = "Weekly"
-        case monthly = "Monthly"
-        case yearly = "Yearly"
+        case weekly = "Week"
+        case monthly = "Month"
+        case yearly = "Year"
         
         var id: String { rawValue }
     }
@@ -137,7 +137,27 @@ final class HomeViewModel: ObservableObject {
     }
     
     func selectPeriod(_ period: Period) {
-        guard selectedPeriod != period else { return }
+        if selectedPeriod == period {
+            // If tapping the same period, check if we need to reset to current
+            let current = Date()
+            let normalizedCurrent = normalize(current, for: period)
+            
+            // If we are not already at the current reference date (normalized), reset
+            if currentReferenceDate != normalizedCurrent {
+               currentReferenceDate = normalizedCurrent
+               
+               // We might need to regenerate available dates if the range shifted significantly,
+               // but usually availableDates covers "now". 
+               // Just to be safe and consistent with generateAvailableDates logic which puts current at end:
+               generateAvailableDates() 
+               
+               currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
+               updatePeriodTitle()
+               Task { await load(for: currentReferenceDate) }
+            }
+            return
+        }
+        
         selectedPeriod = period
         
         // Regenerate available dates for the new period type
