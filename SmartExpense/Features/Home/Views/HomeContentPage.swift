@@ -82,6 +82,10 @@ struct HomeContentPage: View {
                             .frame(width: 32, height: 32)
                             .background(Circle().fill(Color.purple.opacity(0.15)))
                         Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.secondary.opacity(0.5))
                     }
                     
                     VStack(alignment: .leading, spacing: 4) {
