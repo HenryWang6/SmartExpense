@@ -5,10 +5,10 @@ import CoreData
 struct HomeView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var viewModel: HomeViewModel
-    @State private var showingCaptureFlow = false
     
     // We need to pass this binding to pages, but managing it at top level is fine
     @State private var historyFilter: HistoryFilter?
+    @State private var selectedCaptureOption: CaptureOption?
     @Namespace private var namespace
 
     var body: some View {
@@ -62,9 +62,26 @@ struct HomeView: View {
     }
 
     private var captureButton: some View {
-        Button(action: {
-            showingCaptureFlow = true
-        }) {
+        Menu {
+            // Order: Manual, Voice, Camera (Scan) to match iOS 18 style / User preference
+            Button(action: {
+                selectedCaptureOption = .manual
+            }) {
+                Label(CaptureOption.manual.title, systemImage: CaptureOption.manual.icon)
+            }
+            
+            Button(action: {
+                selectedCaptureOption = .voice
+            }) {
+                Label(CaptureOption.voice.title, systemImage: CaptureOption.voice.icon)
+            }
+            
+            Button(action: {
+                selectedCaptureOption = .camera
+            }) {
+                Label(CaptureOption.camera.title, systemImage: CaptureOption.camera.icon)
+            }
+        } label: {
             ZStack {
                 Circle()
                     .fill(
@@ -89,8 +106,8 @@ struct HomeView: View {
         .accessibilityLabel("Capture expense")
         .scaleEffect(1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: false)
-        .fullScreenCover(isPresented: $showingCaptureFlow) {
-            CaptureCoordinatorView()
+        .fullScreenCover(item: $selectedCaptureOption) { option in
+            CaptureCoordinatorView(startOption: option)
         }
     }
     

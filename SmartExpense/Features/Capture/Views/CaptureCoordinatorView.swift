@@ -19,6 +19,8 @@ struct CaptureCoordinatorView: View {
     @State private var showCameraUnavailableAlert = false
     @State private var captureMethod: String = "manual"
     
+    var startOption: CaptureOption? = nil
+    
     enum CaptureState {
         case menu
         case camera
@@ -34,8 +36,12 @@ struct CaptureCoordinatorView: View {
         Group {
             switch captureState {
             case .menu:
-                CaptureMenuView { option in
-                    handleOptionSelected(option)
+                if startOption != nil {
+                    Color.clear
+                } else {
+                    CaptureMenuView { option in
+                        handleOptionSelected(option)
+                    }
                 }
                 
             case .camera, .photoLibrary:
@@ -147,6 +153,11 @@ struct CaptureCoordinatorView: View {
             }
         } message: {
             Text("The camera is not available on the simulator. Please use the photo library option or test on a real device.")
+        }
+        .onAppear {
+            if let startOption = startOption, captureState == .menu {
+                handleOptionSelected(startOption)
+            }
         }
     }
     
