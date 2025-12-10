@@ -94,62 +94,62 @@ struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol, @unchecked Send
     }
     
     private func calculateTrend(currentStart: Date, currentEnd: Date, period: HomePeriod) async throws -> [(Date, Decimal)] {
-        var trendData: [(Date, Decimal)] = []
-        
-        let trendStart: Date
-        let component: Calendar.Component
-        let count: Int
-        
-        switch period {
-        case .monthly:
-            // Past 6 periods (including current)
-            count = 6
-            component = .month
-            trendStart = calendar.date(byAdding: .month, value: -5, to: currentStart) ?? currentStart
-        case .weekly:
-            // Past 12 weeks
-            count = 12
-            component = .weekOfYear
-            trendStart = calendar.date(byAdding: .weekOfYear, value: -11, to: currentStart) ?? currentStart
-        case .yearly:
-            return []
-        }
-        
-        // Fetch all receipts in the trend range
+        // Fetch all receipts in the selected period range
         let request = Receipt.fetchRequest()
-        request.predicate = NSPredicate(format: "date >= %@ AND date <= %@", trendStart as NSDate, currentEnd as NSDate)
+        request.predicate = NSPredicate(format: "date >= %@ AND date <= %@", currentStart as NSDate, currentEnd as NSDate)
         let receipts = try viewContext.fetch(request)
         
-        // Group receipts by period
+        // Determine granularity and range iteration
+        let component: Calendar.Component
+        
+        switch period {
+        case .weekly, .monthly:
+            component = .day
+        case .yearly:
+            component = .month
+        }
+        
+        // Group receipts by the appropriate time unit
         var groupedSpending: [Date: Decimal] = [:]
         
         for receipt in receipts {
             guard let date = receipt.date else { continue }
             
-            // Normalize date to the start of the period
+            // Normalize date to the start of the granularity unit (day or month)
             let normalizedDate: Date
-            switch period {
-            case .monthly:
+            if component == .day {
+                normalizedDate = calendar.startOfDay(for: date)
+            } else {
                 let components = calendar.dateComponents([.year, .month], from: date)
                 guard let d = calendar.date(from: components) else { continue }
                 normalizedDate = d
-            case .weekly:
-                let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
-                guard let d = calendar.date(from: components) else { continue }
-                normalizedDate = d
-            case .yearly:
-                continue
             }
             
             groupedSpending[normalizedDate, default: 0] += Decimal(receipt.totalAmount)
         }
         
-        // Generate all data points (fill with 0 if missing)
-        for i in 0..<count {
-            if let date = calendar.date(byAdding: component, value: i, to: trendStart) {
-                let amount = groupedSpending[date] ?? 0
-                trendData.append((date, amount))
+        // Generate continuous data points filling the range
+        var trendData: [(Date, Decimal)] = []
+        var currentDate = currentStart
+        
+        // Iterate from start to end using the component
+        // Note: We use logical comparison. For 'monthly' period with 'day' component, we go day by day.
+        // For 'yearly' period with 'month' component, we go month by month.
+        while currentDate <= currentEnd {
+            let normalizedKey: Date
+            if component == .day {
+                normalizedKey = calendar.startOfDay(for: currentDate)
+            } else {
+                let components = calendar.dateComponents([.year, .month], from: currentDate)
+                normalizedKey = calendar.date(from: components) ?? currentDate
             }
+            
+            let amount = groupedSpending[normalizedKey] ?? 0
+            trendData.append((normalizedKey, amount))
+            
+            // Advance to next step
+            guard let nextDate = calendar.date(byAdding: component, value: 1, to: currentDate) else { break }
+            currentDate = nextDate
         }
         
         return trendData

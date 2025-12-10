@@ -9,6 +9,7 @@ struct HomeContentPage: View {
     
     // Local state for interacting with charts
     @State private var selectedCategory: String?
+    @State private var scrubbingDate: Date?
     
     // Derived data from ViewModel cache
     private var data: HomeViewModel.PageData {
@@ -256,92 +257,95 @@ struct HomeContentPage: View {
     }
 
     private var spendingTrendChart: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Spending Trend")
-                .font(.headline)
-                .foregroundColor(.primary)
-            
-            if viewModel.selectedPeriod == .yearly {
-                Text("Trend not available for yearly view")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 200)
-            } else {
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            Chart(data.spendingTrend, id: \.date) { item in
-                                BarMark(
-                                    x: .value("Date", item.date),
-                                    y: .value("Amount", item.amount),
-                                    width: .fixed(40)
-                                )
-                                .cornerRadius(8)
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [
-                                            Color.accentColor,
-                                            Color.accentColor.opacity(0.7)
-                                        ],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                                .annotation(position: .top, alignment: .center) {
-                                    if item.amount > 0 {
-                                        Text("$\(Int(item.amount))")
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-                            .frame(width: max(geometry.size.width, CGFloat(data.spendingTrend.count) * 60))
-                            .frame(height: 220)
-                            .chartXAxis {
-                                AxisMarks(values: .automatic) { value in
-                                    AxisGridLine()
-                                    AxisTick()
-                                    if viewModel.selectedPeriod == .monthly {
-                                        AxisValueLabel(format: .dateTime.month())
-                                    } else if viewModel.selectedPeriod == .weekly {
-                                        AxisValueLabel(format: .dateTime.month().day())
-                                    }
-                                }
-                            }
-                            .chartYAxis {
-                                AxisMarks(position: .leading)
-                            }
-                            .defaultScrollAnchor(.trailing)
-                        }
+        let maxAmount = data.spendingTrend.map(\.amount).max() ?? 0
+        let displayMax = maxAmount > 0 ? maxAmount * 1.1 : 100 // Add some buffer
+        
+        return VStack(alignment: .leading, spacing: 16) {
+            // Dynamic Header
+            ZStack(alignment: .leading) {
+                // Default Title
+                Text("Spending Trend")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                    .opacity(scrubbingDate == nil ? 1 : 0)
+                
+                // Scrubbing Details
+                if let scrubbingDate = scrubbingDate,
+                   let item = data.spendingTrend.first(where: { Calendar.current.isDate($0.date, equalTo: scrubbingDate, toGranularity: viewModel.selectedPeriod == .yearly ? .month : .day) }) {
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
+                        Text(item.date, format: viewModel.selectedPeriod == .yearly ? .dateTime.month(.wide).year() : .dateTime.weekday(.wide).month().day())
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                         
-                        // Left fade indicator
-                        LinearGradient(
-                            colors: [
-                                Color(.secondarySystemGroupedBackground),
-                                Color(.secondarySystemGroupedBackground).opacity(0)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                        .frame(width: 20)
-                        .allowsHitTesting(false)
-                        
-                        // Right fade indicator
-                        LinearGradient(
-                            colors: [
-                                Color(.secondarySystemGroupedBackground).opacity(0),
-                                Color(.secondarySystemGroupedBackground)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                        .frame(width: 20)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .allowsHitTesting(false)
+                        Text("$\(Int(item.amount))")
+                            .font(.title3.bold())
+                            .foregroundColor(.primary)
                     }
                 }
-                .frame(height: 220)
             }
+            .frame(height: 24) // Fixed height to prevent jumps
+            
+            Chart {
+                ForEach(data.spendingTrend, id: \.date) { item in
+                    BarMark(
+                        x: .value("Date", item.date, unit: viewModel.selectedPeriod == .yearly ? .month : .day),
+                        y: .value("Amount", item.amount)
+                    )
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [
+                                Color.accentColor,
+                                Color.accentColor.opacity(0.7)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .cornerRadius(viewModel.selectedPeriod == .monthly ? 2 : 6)
+                }
+                
+                if let scrubbingDate = scrubbingDate {
+                    RuleMark(x: .value("Date", scrubbingDate, unit: viewModel.selectedPeriod == .yearly ? .month : .day))
+                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 5]))
+                        .foregroundStyle(Color.secondary.opacity(0.5))
+                }
+            }
+            .chartYScale(domain: 0...displayMax)
+            .chartYAxis {
+                AxisMarks(position: .leading) { value in
+                    AxisGridLine()
+                    AxisValueLabel()
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: viewModel.selectedPeriod == .yearly ? .month : .day, count: viewModel.selectedPeriod == .monthly ? 7 : 1)) { value in
+                    if viewModel.selectedPeriod == .yearly {
+                        AxisValueLabel(format: .dateTime.month(.narrow))
+                    } else if viewModel.selectedPeriod == .monthly {
+                        AxisValueLabel(format: .dateTime.day())
+                    } else {
+                        AxisValueLabel(format: .dateTime.weekday(.abbreviated))
+                    }
+                }
+            }
+            .overlay {
+                // UIKit-based overlay for proper touch handling
+                HoldToScrubOverlay(
+                    onScrubbing: { normalizedX in
+                        // Convert normalized position to date
+                        guard !data.spendingTrend.isEmpty else { return }
+                        let index = Int(normalizedX * CGFloat(data.spendingTrend.count - 1))
+                        let clampedIndex = max(0, min(data.spendingTrend.count - 1, index))
+                        scrubbingDate = data.spendingTrend[clampedIndex].date
+                    },
+                    onScrubEnd: {
+                        scrubbingDate = nil
+                    },
+                    holdDuration: 0.3,
+                    movementThreshold: 10
+                )
+            }
+            .frame(height: 220)
         }
         .padding(20)
         .background(
