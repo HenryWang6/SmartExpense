@@ -270,14 +270,16 @@ struct HomeContentPage: View {
                     .opacity(scrubbingDate == nil ? 1 : 0)
                 
                 // Scrubbing Details
-                if let scrubbingDate = scrubbingDate,
-                   let item = data.spendingTrend.first(where: { Calendar.current.isDate($0.date, equalTo: scrubbingDate, toGranularity: viewModel.selectedPeriod == .yearly ? .month : .day) }) {
+                if let scrubbingDate = scrubbingDate {
+                    // Find matching item or default to 0
+                    let amount = data.spendingTrend.first(where: { Calendar.current.isDate($0.date, equalTo: scrubbingDate, toGranularity: viewModel.selectedPeriod == .yearly ? .month : .day) })?.amount ?? 0
+                    
                     HStack(alignment: .lastTextBaseline, spacing: 8) {
-                        Text(item.date, format: viewModel.selectedPeriod == .yearly ? .dateTime.month(.wide).year() : .dateTime.weekday(.wide).month().day())
+                        Text(scrubbingDate, format: viewModel.selectedPeriod == .yearly ? .dateTime.month(.wide).year() : .dateTime.weekday(.wide).month().day())
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        Text("$\(Int(item.amount))")
+                        Text("$\(Int(amount))")
                             .font(.title3.bold())
                             .foregroundColor(.primary)
                     }
@@ -306,8 +308,8 @@ struct HomeContentPage: View {
                 
                 if let scrubbingDate = scrubbingDate {
                     RuleMark(x: .value("Date", scrubbingDate, unit: viewModel.selectedPeriod == .yearly ? .month : .day))
-                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 5]))
-                        .foregroundStyle(Color.secondary.opacity(0.5))
+                        .foregroundStyle(Color.gray)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
                 }
             }
             .chartYScale(domain: 0...displayMax)
@@ -332,11 +334,22 @@ struct HomeContentPage: View {
                 // UIKit-based overlay for proper touch handling
                 HoldToScrubOverlay(
                     onScrubbing: { normalizedX in
-                        // Convert normalized position to date
-                        guard !data.spendingTrend.isEmpty else { return }
-                        let index = Int(normalizedX * CGFloat(data.spendingTrend.count - 1))
-                        let clampedIndex = max(0, min(data.spendingTrend.count - 1, index))
-                        scrubbingDate = data.spendingTrend[clampedIndex].date
+                        // Calculate date from range based on normalizedX
+                        let range = viewModel.dateRange(for: viewModel.selectedPeriod, date: date)
+                        let totalSeconds = range.end.timeIntervalSince(range.start)
+                        let offsetSeconds = totalSeconds * Double(normalizedX)
+                        let targetDate = range.start.addingTimeInterval(offsetSeconds)
+                        
+                        // Snap to granularity
+                        let component: Calendar.Component = viewModel.selectedPeriod == .yearly ? .month : .day
+                        if let snappedDate = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month, .day], from: targetDate)) {
+                             // For yearly, we might want to just snap to month start
+                             if viewModel.selectedPeriod == .yearly {
+                                 scrubbingDate = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: targetDate))
+                             } else {
+                                 scrubbingDate = snappedDate
+                             }
+                        }
                     },
                     onScrubEnd: {
                         scrubbingDate = nil

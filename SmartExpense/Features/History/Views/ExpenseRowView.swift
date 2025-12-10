@@ -19,15 +19,30 @@ struct ExpenseRowView: View {
     
     var body: some View {
         HStack(spacing: 16) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(Color.accentColor.opacity(0.15))
-                    .frame(width: 44, height: 44)
+            // Icon with Badge
+            ZStack(alignment: .bottomTrailing) {
+                // Main Merchant Circle
+                ZStack {
+                    Circle()
+                        .fill(Color.accentColor.opacity(0.1))
+                        .frame(width: 48, height: 48)
+                    
+                    Text(merchantInitial)
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                        .foregroundColor(.accentColor)
+                }
                 
-                Image(systemName: iconName(for: receipt))
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundColor(.accentColor)
+                // Input Source Badge
+                ZStack {
+                    Circle()
+                        .fill(Color(UIColor.systemBackground)) // Match background for cutout effect
+                        .frame(width: 22, height: 22)
+                    
+                    Image(systemName: sourceIconInfo.icon)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(sourceIconInfo.color)
+                }
+                .offset(x: 4, y: 4)
             }
             
             // Content
@@ -44,35 +59,35 @@ struct ExpenseRowView: View {
             Spacer()
             
             Text("$\(receipt.totalAmount, specifier: "%.2f")")
-                .font(.system(size: 16, weight: .bold))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundColor(.accentColor)
-            
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.secondary.opacity(0.5))
         }
         .padding(.vertical, 8)
     }
     
-    private func iconName(for receipt: Receipt) -> String {
-        // Check new captureMethod field first, fall back to isVoiceInput for backward compatibility
+    private var merchantInitial: String {
+        guard let name = receipt.merchantName, !name.isEmpty else { return "?" }
+        return String(name.prefix(1)).uppercased()
+    }
+    
+    private var sourceIconInfo: (icon: String, color: Color) {
         if let method = receipt.captureMethod {
             switch method {
             case "camera", "photoLibrary":
-                return "camera.fill"
+                return ("camera.fill", .green)
             case "manual":
-                return "hand.draw.fill"
+                return ("square.and.pencil", Color(red: 0.6, green: 0.4, blue: 0.2)) // Warm brown
             case "voice":
-                return "mic.fill"
+                return ("mic.fill", .orange)
             default:
-                return "receipt"
+                return ("receipt", .secondary)
             }
         } else if receipt.isVoiceInput {
-            return "mic.fill"
+            return ("mic.fill", .orange)
         } else if receipt.imagePath != nil {
-            return "camera.fill"
+            return ("camera.fill", .green)
         } else {
-            return "hand.draw.fill"
+            return ("square.and.pencil", Color(red: 0.6, green: 0.4, blue: 0.2))
         }
     }
 }

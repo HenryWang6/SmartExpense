@@ -46,10 +46,8 @@ struct ExpenseDetailView: View {
                     noteSection
                     
                     // Receipt Image (if available)
-                    if let imagePath = receipt.imagePath,
-                       let uiImage = FileStorageService.shared.loadReceiptImage(filename: imagePath) {
-                        receiptImageSection(image: uiImage)
-                    }
+                    // Receipt Image
+                    receiptImageSection
                     
                     Spacer(minLength: 40)
                 }
@@ -86,6 +84,17 @@ struct ExpenseDetailView: View {
                 }
             }
         }
+        .fullScreenCover(isPresented: $showScanner) {
+            DocumentScannerView { image in
+                handleImageCaptured(image)
+            }
+            .ignoresSafeArea()
+        }
+        .alert("Camera Not Available", isPresented: $showCameraAlert) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("The camera is not available on this device. Please use a real device to test scanning.")
+        }
     }
     
     private func startEditing() {
@@ -110,6 +119,55 @@ struct ExpenseDetailView: View {
         } catch {
             print("Error saving receipt: \(error)")
         }
+    }
+    
+    // MARK: - Scanner Logic
+    @State private var showScanner = false
+    @State private var showCameraAlert = false
+    
+    private func checkCameraPermission() {
+        // Check if camera is available (not available on simulator)
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            showCameraAlert = true
+            return
+        }
+        
+        Task {
+            let status = PermissionsManager.shared.checkCameraPermission()
+            
+            if status == .authorized {
+                await MainActor.run {
+                    showScanner = true
+                }
+            } else if status == .notDetermined {
+                let granted = await PermissionsManager.shared.requestCameraPermission()
+                if granted {
+                    await MainActor.run {
+                        showScanner = true
+                    }
+                }
+            } else {
+                // Permission denied - strictly speaking we might want to alert user here too,
+                // but following pattern from CaptureCoordinatorView usually implies just not showing or handling gracefully.
+                // For now we will just do nothing if denied, maybe add alert later if needed.
+            }
+        }
+    }
+    
+    private func handleImageCaptured(_ image: UIImage) {
+        // Save image using FileStorageService
+        if let filename = FileStorageService.shared.saveReceiptImage(image) {
+            // Update receipt
+            receipt.imagePath = filename
+            
+            do {
+                try viewContext.save()
+            } catch {
+                print("Error saving receipt image path: \(error)")
+            }
+        }
+        
+        showScanner = false
     }
     
     private var headerCard: some View {
@@ -383,19 +441,50 @@ struct ExpenseDetailView: View {
         }
     }
     
-    private func receiptImageSection(image: UIImage) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Receipt Image")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(.primary)
+    private var receiptImageSection: some View {
+        Group {
+            if let imagePath = receipt.imagePath,
+               let uiImage = FileStorageService.shared.loadReceiptImage(filename: imagePath) {
+                // Existing Image
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Receipt Image")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.primary)
+                        .padding(.horizontal, 4)
+                    
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+                }
+            } else if shouldShowAddReceiptButton {
+                // Add Receipt Button
+                Button(action: {
+                    checkCameraPermission()
+                }) {
+                    HStack {
+                        Image(systemName: "camera.fill")
+                        Text("Attach Receipt Image")
+                            .fontWeight(.medium)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                }
                 .padding(.horizontal, 4)
-            
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+            }
         }
+    }
+    
+    private var shouldShowAddReceiptButton: Bool {
+        guard receipt.imagePath == nil else { return false }
+        
+        // Show for manual or voice entries
+        let method = receipt.captureMethod?.lowercased() ?? "manual"
+        return method == "manual" || method == "voice"
     }
 }
 
