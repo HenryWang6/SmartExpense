@@ -39,22 +39,72 @@ final class HomeViewModel: ObservableObject {
     @Published private(set) var periodTitle: String = ""
     @Published private(set) var previousPeriodTitle: String = ""
     @Published private(set) var nextPeriodTitle: String = ""
-    @Published private(set) var totalSpendText: String = "-"
-    @Published private(set) var spendingComparisonText: String = ""
-    @Published private(set) var averageDailySpendText: String = "-"
-    @Published private(set) var topMerchantTitle: String = "-"
-    @Published private(set) var topCategoryTitle: String = "-"
-    
-    @Published private(set) var biggestPurchaseAmount: String = "-"
-    @Published private(set) var biggestPurchaseMerchant: String = "-"
-    @Published private(set) var biggestPurchaseDate: String = "-"
-    @Published private(set) var biggestPurchaseReceiptId: NSManagedObjectID?
-    
-    @Published private(set) var topCategoryNameOnly: String?
+    @Published private(set) var availableDates: [Date] = []
     @Published private(set) var currentDateRange: (start: Date, end: Date)?
     
-    @Published private(set) var categorySpending: [(category: String, amount: Double)] = []
-    @Published private(set) var spendingTrend: [(date: Date, amount: Double)] = []
+    // Add public access to format titles for the view
+    func title(for date: Date) -> String {
+        return title(for: selectedPeriod, date: date)
+    }
+    struct PageData: Equatable {
+        let totalSpendText: String
+        let spendingComparisonText: String
+        let averageDailySpendText: String
+        let topMerchantTitle: String
+        let topCategoryTitle: String
+        let biggestPurchaseAmount: String
+        let biggestPurchaseMerchant: String
+        let biggestPurchaseDate: String
+        let biggestPurchaseReceiptId: NSManagedObjectID?
+        let topCategoryNameOnly: String?
+        let categorySpending: [(category: String, amount: Double)]
+        let spendingTrend: [(date: Date, amount: Double)]
+        
+        static let empty = PageData(
+            totalSpendText: "-", spendingComparisonText: "", averageDailySpendText: "-",
+            topMerchantTitle: "-", topCategoryTitle: "-",
+            biggestPurchaseAmount: "-", biggestPurchaseMerchant: "-", biggestPurchaseDate: "-",
+            biggestPurchaseReceiptId: nil, topCategoryNameOnly: nil,
+            categorySpending: [], spendingTrend: []
+        )
+        
+        static func == (lhs: PageData, rhs: PageData) -> Bool {
+            return lhs.totalSpendText == rhs.totalSpendText &&
+                lhs.spendingComparisonText == rhs.spendingComparisonText &&
+                lhs.averageDailySpendText == rhs.averageDailySpendText &&
+                lhs.topMerchantTitle == rhs.topMerchantTitle &&
+                lhs.topCategoryTitle == rhs.topCategoryTitle &&
+                lhs.biggestPurchaseAmount == rhs.biggestPurchaseAmount &&
+                lhs.biggestPurchaseMerchant == rhs.biggestPurchaseMerchant &&
+                lhs.biggestPurchaseDate == rhs.biggestPurchaseDate &&
+                lhs.biggestPurchaseReceiptId == rhs.biggestPurchaseReceiptId &&
+                lhs.topCategoryNameOnly == rhs.topCategoryNameOnly &&
+                lhs.categorySpending.map { $0.category } == rhs.categorySpending.map { $0.category } &&
+                lhs.categorySpending.map { $0.amount } == rhs.categorySpending.map { $0.amount } &&
+                lhs.spendingTrend.map { $0.date } == rhs.spendingTrend.map { $0.date } &&
+                lhs.spendingTrend.map { $0.amount } == rhs.spendingTrend.map { $0.amount }
+        }
+    }
+
+    @Published var pageData: [Date: PageData] = [:]
+    
+    // Properties for legacy support / current view convenience
+    // They now forward to the current reference date's data
+    var currentData: PageData {
+        pageData[normalize(currentReferenceDate, for: selectedPeriod)] ?? .empty
+    }
+
+    // Proxy properties pointing to currentData
+    var totalSpendText: String { currentData.totalSpendText }
+    var spendingComparisonText: String { currentData.spendingComparisonText }
+    var topCategoryNameOnly: String? { currentData.topCategoryNameOnly }
+    var topCategoryTitle: String { currentData.topCategoryTitle }
+    var biggestPurchaseReceiptId: NSManagedObjectID? { currentData.biggestPurchaseReceiptId }
+    var biggestPurchaseAmount: String { currentData.biggestPurchaseAmount }
+    var biggestPurchaseMerchant: String { currentData.biggestPurchaseMerchant }
+    var categorySpending: [(category: String, amount: Double)] { currentData.categorySpending }
+    var spendingTrend: [(date: Date, amount: Double)] { currentData.spendingTrend }
+
 
     private let service: HomeOverviewServiceProtocol
     private let currencyFormatter: NumberFormatter
@@ -65,6 +115,9 @@ final class HomeViewModel: ObservableObject {
         self.service = service
         self.currencyFormatter = currencyFormatter
         
+        // Initialize available dates (current + past 24 periods)
+        generateAvailableDates()
+        
         // Initialize period title and date range immediately so they're available for navigation
         updatePeriodTitle()
         currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
@@ -74,19 +127,69 @@ final class HomeViewModel: ObservableObject {
         // Set currentDateRange immediately so it's available for navigation
         currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
         
-        Task { await load() }
+        Task { await load(for: currentReferenceDate) }
     }
 
     func refresh() {
-        Task { await load() }
+        // Clear cache and reload current
+        pageData.removeAll()
+        Task { await load(for: currentReferenceDate) }
     }
     
     func selectPeriod(_ period: Period) {
         guard selectedPeriod != period else { return }
         selectedPeriod = period
+        
+        // Regenerate available dates for the new period type
+        // Reset to "current" (last in list) when switching period types
+        // to avoid confusion or mapping errors
+        currentReferenceDate = Date()
+        generateAvailableDates()
+        
         currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
         updatePeriodTitle()
-        Task { await load() }
+        Task { await load(for: currentReferenceDate) }
+    }
+    
+
+    
+    // Helper to generate a fixed list of dates (e.g. Current + Past 24 periods)
+    private func generateAvailableDates() {
+        var dates: [Date] = []
+        let count = 24 // Past 24 periods
+        let component = self.component(for: selectedPeriod)
+        
+        // Generate from past to current, so current is at end
+        for i in (0...count).reversed() {
+            if let date = calendar.date(byAdding: component, value: -i, to: Date()) {
+                // Normalize date to start of period to ensure consistency
+                let normalized = normalize(date, for: selectedPeriod)
+                dates.append(normalized)
+            }
+        }
+        self.availableDates = dates
+        
+        // Ensure currentReferenceDate is one of the available dates (snap to closest or last)
+        let normalizedCurrent = normalize(currentReferenceDate, for: selectedPeriod)
+        if !dates.contains(normalizedCurrent) {
+            // Default to the last one (most current)
+            if let last = dates.last {
+                currentReferenceDate = last
+            }
+        } else {
+            currentReferenceDate = normalizedCurrent
+        }
+    }
+    
+    private func normalize(_ date: Date, for period: Period) -> Date {
+        switch period {
+        case .weekly:
+            return calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)) ?? date
+        case .monthly:
+            return calendar.date(from: calendar.dateComponents([.year, .month], from: date)) ?? date
+        case .yearly:
+            return calendar.date(from: calendar.dateComponents([.year], from: date)) ?? date
+        }
     }
     
     func movePeriod(by value: Int) {
@@ -94,22 +197,48 @@ final class HomeViewModel: ObservableObject {
         currentReferenceDate = newDate
         currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
         updatePeriodTitle()
-        Task { await load() }
+        Task { await load(for: currentReferenceDate) }
+    }
+    
+    func selectDate(_ date: Date) {
+        guard currentReferenceDate != date else { return }
+        currentReferenceDate = date
+        currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
+        updatePeriodTitle()
+        // We don't necessarily need to force load here if the view handles it via onAppear,
+        // but it's safe to trigger it.
+        Task { await load(for: date) }
     }
 
-    private func load() async {
-        state = .loading
+    func load(for date: Date) async {
+        let normalizedDate = normalize(date, for: selectedPeriod)
+        
+        // Return if already loaded
+        if pageData[normalizedDate] != nil {
+            return
+        }
+        
+        // Update global state if this is the current date
+        if normalizedDate == normalize(currentReferenceDate, for: selectedPeriod) {
+            state = .loading
+        }
+        
         do {
-            let range = dateRange(for: selectedPeriod, date: currentReferenceDate)
-            currentDateRange = range
+            let range = dateRange(for: selectedPeriod, date: normalizedDate)
             let homePeriod = mapPeriod(selectedPeriod)
             
             let summary = try await service.loadSummary(start: range.start, end: range.end, period: homePeriod)
             
-            apply(summary: summary)
-            state = .loaded
+            let data = process(summary: summary)
+            pageData[normalizedDate] = data
+            
+            if normalizedDate == normalize(currentReferenceDate, for: selectedPeriod) {
+                state = .loaded
+            }
         } catch {
-            state = .failed(error: "Unable to load overview. Please try again.")
+            if normalizedDate == normalize(currentReferenceDate, for: selectedPeriod) {
+                state = .failed(error: "Unable to load overview. Please try again.")
+            }
         }
     }
     
@@ -121,7 +250,7 @@ final class HomeViewModel: ObservableObject {
         }
     }
     
-    private func dateRange(for period: Period, date: Date) -> (start: Date, end: Date) {
+    func dateRange(for period: Period, date: Date) -> (start: Date, end: Date) {
         let calendar = Calendar.current
         var start: Date
         var end: Date
@@ -148,12 +277,10 @@ final class HomeViewModel: ObservableObject {
         return (start, end)
     }
 
-    private func apply(summary: HomeSummary) {
-        // We override the period title from the summary with our own calculated one
-        updatePeriodTitle()
+    private func process(summary: HomeSummary) -> PageData {
+        let totalSpendText = currencyFormatter.string(from: summary.totalSpend as NSDecimalNumber) ?? "-"
         
-        totalSpendText = currencyFormatter.string(from: summary.totalSpend as NSDecimalNumber) ?? "-"
-        
+        let spendingComparisonText: String
         if let previousTotal = summary.previousPeriodTotalSpend {
             let diff = summary.totalSpend - previousTotal
             let diffText = currencyFormatter.string(from: abs(diff) as NSDecimalNumber) ?? "-"
@@ -163,8 +290,9 @@ final class HomeViewModel: ObservableObject {
             spendingComparisonText = ""
         }
         
-        averageDailySpendText = currencyFormatter.string(from: summary.averageDailySpend as NSDecimalNumber) ?? "-"
+        let averageDailySpendText = currencyFormatter.string(from: summary.averageDailySpend as NSDecimalNumber) ?? "-"
 
+        let topMerchantTitle: String
         if let merchantName = summary.topMerchantName,
            let amount = summary.topMerchantAmount,
            let amountText = currencyFormatter.string(from: amount as NSDecimalNumber) {
@@ -173,6 +301,8 @@ final class HomeViewModel: ObservableObject {
             topMerchantTitle = "No merchant data yet"
         }
 
+        let topCategoryTitle: String
+        let topCategoryNameOnly: String?
         if let categoryName = summary.topCategoryName,
            let amount = summary.topCategoryAmount,
            let amountText = currencyFormatter.string(from: amount as NSDecimalNumber) {
@@ -182,6 +312,11 @@ final class HomeViewModel: ObservableObject {
             topCategoryTitle = "No category data yet"
             topCategoryNameOnly = nil
         }
+        
+        let biggestPurchaseAmount: String
+        let biggestPurchaseMerchant: String
+        let biggestPurchaseDate: String
+        let biggestPurchaseReceiptId: NSManagedObjectID?
         
         if let biggest = summary.biggestPurchase {
             biggestPurchaseAmount = currencyFormatter.string(from: biggest.amount as NSDecimalNumber) ?? "-"
@@ -198,8 +333,23 @@ final class HomeViewModel: ObservableObject {
             biggestPurchaseReceiptId = nil
         }
         
-        categorySpending = summary.categorySpending.map { ($0.category, NSDecimalNumber(decimal: $0.amount).doubleValue) }
-        spendingTrend = summary.spendingTrend.map { ($0.date, NSDecimalNumber(decimal: $0.amount).doubleValue) }
+        let categorySpending = summary.categorySpending.map { ($0.category, NSDecimalNumber(decimal: $0.amount).doubleValue) }
+        let spendingTrend = summary.spendingTrend.map { ($0.date, NSDecimalNumber(decimal: $0.amount).doubleValue) }
+        
+        return PageData(
+            totalSpendText: totalSpendText,
+            spendingComparisonText: spendingComparisonText,
+            averageDailySpendText: averageDailySpendText,
+            topMerchantTitle: topMerchantTitle,
+            topCategoryTitle: topCategoryTitle,
+            biggestPurchaseAmount: biggestPurchaseAmount,
+            biggestPurchaseMerchant: biggestPurchaseMerchant,
+            biggestPurchaseDate: biggestPurchaseDate,
+            biggestPurchaseReceiptId: biggestPurchaseReceiptId,
+            topCategoryNameOnly: topCategoryNameOnly,
+            categorySpending: categorySpending,
+            spendingTrend: spendingTrend
+        )
     }
     
     private func updatePeriodTitle() {
