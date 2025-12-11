@@ -54,8 +54,20 @@ struct CaptureCoordinatorView: View {
             switch captureState {
             // Case menu removed
                 
-            case .camera, .photoLibrary:
-                // Empty view - camera/photo library presented via fullScreenCover
+            case .camera:
+                DocumentScannerView(
+                    onImageCaptured: { image in
+                        selectedImage = image
+                        captureState = .imagePreview
+                    },
+                    onCancel: {
+                        dismiss()
+                    }
+                )
+                .ignoresSafeArea()
+
+            case .photoLibrary:
+                // Empty view - photo library presented via fullScreenCover
                 Color.clear
                 
             case .imagePreview:
@@ -132,29 +144,6 @@ struct CaptureCoordinatorView: View {
                     dismiss()
                 }
             }
-        }
-        .fullScreenCover(isPresented: Binding(
-            get: { captureState == .camera },
-            set: { isPresented in
-                if !isPresented && captureState == .camera {
-                    // Handled by onCancel/dismiss
-                }
-            }
-        )) {
-            DocumentScannerView(
-                onImageCaptured: { image in
-                    selectedImage = image
-                    captureState = .imagePreview
-                },
-                onCancel: {
-                    print("DEBUG: DocumentScannerView cancelled. Scheduling delayed dismiss.")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        print("DEBUG: Executing delayed dismiss for Coordinator.")
-                        dismiss()
-                    }
-                }
-            )
-            .ignoresSafeArea()
         }
         .fullScreenCover(isPresented: Binding(
             get: { captureState == .photoLibrary },
