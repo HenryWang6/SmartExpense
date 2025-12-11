@@ -280,8 +280,7 @@ struct HistoryView: View {
     }
 }
 
-// For backward compatibility, keep ContentView as a typealias
-typealias ContentView = HistoryView
+
 
 #Preview {
     HistoryView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)

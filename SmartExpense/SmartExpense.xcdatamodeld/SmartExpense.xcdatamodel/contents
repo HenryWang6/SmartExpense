@@ -14,6 +14,17 @@
         <attribute name="note" optional="YES" attributeType="String"/>
         <attribute name="voiceTranscript" optional="YES" attributeType="String" defaultValueString=""/>
         <relationship name="items" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ReceiptItem" inverseName="receipt" inverseEntity="ReceiptItem"/>
+        <relationship name="category" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ExpenseCategory" inverseName="receipts" inverseEntity="ExpenseCategory"/>
+    </entity>
+    <entity name="ExpenseCategory" representedClassName="ExpenseCategory" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="isDefault" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="iconValue" optional="YES" attributeType="String"/>
+        <attribute name="iconType" optional="YES" attributeType="String"/>
+        <attribute name="colorHex" optional="YES" attributeType="String"/>
+        <attribute name="sortOrder" optional="YES" attributeType="Integer 32" usesScalarValueType="YES"/>
+        <relationship name="receipts" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Receipt" inverseName="category" inverseEntity="Receipt"/>
     </entity>
     <entity name="ReceiptItem" representedClassName="ReceiptItem" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
@@ -28,5 +39,6 @@
     <elements>
         <element name="Receipt" positionX="-63" positionY="-18" width="128" height="44"/>
         <element name="ReceiptItem" positionX="-63" positionY="60" width="128" height="44"/>
+        <element name="ExpenseCategory" positionX="-63" positionY="138" width="128" height="44"/>
     </elements>
 </model>

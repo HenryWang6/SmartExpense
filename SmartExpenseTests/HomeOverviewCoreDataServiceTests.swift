@@ -2,7 +2,8 @@ import XCTest
 import CoreData
 @testable import SmartExpense
 
-class HomeOverviewCoreDataServiceTests: XCTestCase {
+@MainActor
+final class HomeOverviewCoreDataServiceTests: XCTestCase {
     var persistenceController: PersistenceController!
     var service: HomeOverviewCoreDataService!
     var viewContext: NSManagedObjectContext!

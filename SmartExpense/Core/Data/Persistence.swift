@@ -69,5 +69,8 @@ struct PersistenceController {
             }
         })
         container.viewContext.automaticallyMergesChangesFromParent = true
+        
+        // Trigger Schema Migration / Seeding
+        CategoryMigrationService.shared.migrate(in: container.viewContext)
     }
 }

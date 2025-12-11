@@ -30,14 +30,13 @@ struct RootTabView: View {
                 }
 
             // Placeholder for History tab (receipts & expenses list)
-            ContentView()
+            HistoryView()
                 .tabItem {
                     Image(systemName: "clock")
                     Text("History")
                 }
 
-            // Placeholder for Profile / Settings tab
-            Text("Settings")
+            SettingsView()
                 .tabItem {
                     Image(systemName: "gearshape")
                     Text("Settings")
