@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CategoryVisualPicker: View {
     @ObservedObject var category: ExpenseCategory
+    @Environment(\.dismiss) private var dismiss
     
     // MARK: - Configuration
     private let colors: [String] = [
@@ -32,7 +33,24 @@ struct CategoryVisualPicker: View {
         "pill.fill",
         "cross.fill",
         "leaf.fill",
-        "bolt.fill"
+        "bolt.fill",
+        "bus.fill",
+        "airplane",
+        "graduationcap.fill",
+        "gift.fill",
+        "cart.badge.plus",
+        "banknote.fill",
+        "cup.and.saucer.fill",
+        "fork.knife",
+        "tshirt.fill"
+    ]
+    
+    // Common emojis for expenses
+    private let emojis: [String] = [
+        "🍔", "🛒", "⛽", "🏠", "💡", "🎮", 
+        "🎬", "💊", "👟", "✈️", "🚍", "🎓", 
+        "👶", "🐾", "💇", "🎁", "💰", "📱", 
+        "💻", "📚", "🍺", "☕", "🍕", "🔧"
     ]
     
     enum IconType: String, CaseIterable {
@@ -41,14 +59,19 @@ struct CategoryVisualPicker: View {
     }
     
     @State private var selectedIconType: IconType = .emoji
-    @State private var emojiText: String = ""
     
     private let columns = [
         GridItem(.adaptive(minimum: 44))
     ]
     
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 20) {
+            // MARK: - Handle Indicator (Optional visual cue)
+            Capsule()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: 40, height: 5)
+                .padding(.top, 10)
+            
             // MARK: - Header / Preview
             ZStack {
                 Circle()
@@ -64,7 +87,9 @@ struct CategoryVisualPicker: View {
                         .font(.system(size: 40))
                 }
             }
-            .padding(.top, 20)
+            // Add a subtle bounce animation when icon changes?
+            .animation(.interactiveSpring(), value: category.iconValue)
+            .animation(.interactiveSpring(), value: category.colorHex)
             
             // MARK: - Icon Type Picker
             Picker("Icon Type", selection: $selectedIconType) {
@@ -73,120 +98,143 @@ struct CategoryVisualPicker: View {
                 }
             }
             .pickerStyle(.segmented)
+            .padding(.horizontal)
             .onChange(of: selectedIconType) { newValue in
-                // Update model when switching types if needed, 
-                // or just wait for user to select an icon.
-                // For better UX, we might want to preserve the previous value or default.
-                if newValue == .sfSymbol {
-                    category.iconType = "sfSymbol"
-                    // If current icon is not an SF symbol, maybe default to first one?
-                    if !sfSymbols.contains(category.iconValue ?? "") {
-                        category.iconValue = sfSymbols.first
-                    }
-                } else {
-                    category.iconType = "emoji"
-                    // If current icon is a long SF symbol string, maybe default to a smiley?
-                    // But we can let the emoji input handle it.
-                    if (category.iconValue?.count ?? 0) > 2 {
-                         category.iconValue = "😀"
-                         emojiText = "😀"
-                    } else {
-                        emojiText = category.iconValue ?? ""
-                    }
-                }
+                handleTypeChange(newValue)
             }
 
             // MARK: - Icon Selection
-            if selectedIconType == .emoji {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Emoji")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+            ScrollView {
+                VStack(spacing: 24) {
                     
-                    TextField("Enter Emoji", text: $emojiText)
-                        .font(.system(size: 50))
-                        .multilineTextAlignment(.center)
-                        .padding()
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(12)
-                        .onChange(of: emojiText) { newValue in
-                            // Limit to 1 character approximately (emojis can be multiple scalars)
-                            if newValue.count > 0 {
-                                let lastChar = String(newValue.suffix(1))
-                                if emojiText != lastChar {
-                                    emojiText = lastChar
-                                }
-                                category.iconValue = emojiText
-                            }
-                        }
-                        .onAppear {
-                            emojiText = category.iconValue ?? ""
-                        }
-                }
-            } else {
-                ScrollView {
+                    // Icons Grid
                     LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(sfSymbols, id: \.self) { symbol in
-                            ZStack {
-                                Circle()
-                                    .fill(category.iconValue == symbol ? Color.blue.opacity(0.2) : Color.clear)
-                                
-                                Image(systemName: symbol)
-                                    .font(.title2)
-                                    .foregroundColor(.primary)
+                        if selectedIconType == .emoji {
+                            ForEach(emojis, id: \.self) { emoji in
+                                IconCell(
+                                    content: Text(emoji).font(.largeTitle),
+                                    isSelected: category.iconValue == emoji
+                                ) {
+                                    category.iconValue = emoji
+                                    category.iconType = "emoji"
+                                }
                             }
-                            .frame(width: 44, height: 44)
-                            .onTapGesture {
-                                category.iconValue = symbol
+                        } else {
+                            ForEach(sfSymbols, id: \.self) { symbol in
+                                IconCell(
+                                    content: Image(systemName: symbol).font(.title2).foregroundColor(.primary),
+                                    isSelected: category.iconValue == symbol
+                                ) {
+                                    category.iconValue = symbol
+                                    category.iconType = "sfSymbol"
+                                }
                             }
                         }
                     }
                     .padding(.horizontal)
-                }
-                .frame(maxHeight: 120) // Limit height
-            }
-            
-            Divider()
-            
-            // MARK: - Color Selection
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Color")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(colors, id: \.self) { hex in
-                        ZStack {
-                            Circle()
-                                .fill(Color(hex: hex))
-                                .frame(width: 30, height: 30)
-                            
-                            if category.colorHex?.uppercased() == hex.uppercased() {
-                                Image(systemName: "checkmark")
-                                    .font(.caption)
-                                    .foregroundColor(.white)
-                                    .shadow(radius: 1)
+                    
+                    Divider()
+                        .padding(.horizontal)
+                    
+                    // MARK: - Color Selection
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Color")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
+                        
+                        LazyVGrid(columns: columns, spacing: 12) {
+                            ForEach(colors, id: \.self) { hex in
+                                ColorCell(
+                                    hex: hex,
+                                    isSelected: category.colorHex?.uppercased() == hex.uppercased()
+                                ) {
+                                    category.colorHex = hex
+                                }
                             }
                         }
-                        .frame(width: 44, height: 44) // Touch target
-                        .onTapGesture {
-                            category.colorHex = hex
-                        }
+                        .padding(.horizontal)
                     }
                 }
+                .padding(.bottom, 20)
             }
-            
-            Spacer()
         }
         .padding()
         .onAppear {
-            // Initialize local state from model
-            if category.iconType == "sfSymbol" {
-                selectedIconType = .sfSymbol
-            } else {
-                selectedIconType = .emoji
-                emojiText = category.iconValue ?? ""
+            initializeState()
+        }
+    }
+    
+    // MARK: - Helpers
+    
+    private func initializeState() {
+        if category.iconType == "sfSymbol" {
+            selectedIconType = .sfSymbol
+        } else {
+            selectedIconType = .emoji
+        }
+    }
+    
+    private func handleTypeChange(_ newValue: IconType) {
+        if newValue == .sfSymbol {
+            // If switching to SF Symbol and current is emoji, default to first symbol if needed
+            category.iconType = "sfSymbol"
+            if !sfSymbols.contains(category.iconValue ?? "") {
+                category.iconValue = sfSymbols.first
+            }
+        } else {
+            // Switching to Emoji
+            category.iconType = "emoji"
+            if !emojis.contains(category.iconValue ?? "") {
+                category.iconValue = emojis.first
             }
         }
+    }
+}
+
+// MARK: - Subviews
+
+struct IconCell<Content: View>: View {
+    let content: Content
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isSelected ? Color.blue.opacity(0.15) : Color.clear)
+            
+            content
+        }
+        .frame(width: 50, height: 50)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: action)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
+        )
+    }
+}
+
+struct ColorCell: View {
+    let hex: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(Color(hex: hex))
+                .frame(width: 40, height: 40)
+            
+            if isSelected {
+                Image(systemName: "checkmark")
+                    .font(.caption.bold())
+                    .foregroundColor(.white)
+                    .shadow(radius: 1)
+            }
+        }
+        .frame(width: 44, height: 44)
+        .onTapGesture(perform: action)
     }
 }

@@ -133,6 +133,14 @@ final class HomeViewModel: ObservableObject {
                 self?.refresh()
             }
             .store(in: &cancellables)
+            
+        // Subscribe to category updates
+        NotificationCenter.default.publisher(for: .categoryUpdated)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.refresh()
+            }
+            .store(in: &cancellables)
     }
 
     func onAppear() {

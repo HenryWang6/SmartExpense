@@ -111,7 +111,8 @@ struct CategoryInlineRow: View {
         .padding(.horizontal, 4)
         .sheet(isPresented: $showVisualPicker) {
             CategoryVisualPicker(category: category)
-                .presentationDetents([.fraction(0.4)])
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
         .alert("Save Changes?", isPresented: $showConfirmationAlert) {
             Button("Save") {
@@ -145,7 +146,8 @@ struct CategoryInlineRow: View {
     }
     
     private func handleSubmit() {
-        if nameText != category.name {
+        // Check if name changed OR if the category object has other changes (like icon/color)
+        if nameText != category.name || category.hasChanges {
             pendingAction = .save
             showConfirmationAlert = true
         } else {
@@ -155,7 +157,7 @@ struct CategoryInlineRow: View {
     }
     
     private func cancelEdit() {
-        if nameText != category.name {
+        if nameText != category.name || category.hasChanges {
              pendingAction = .discard
              showConfirmationAlert = true
         } else {
@@ -164,10 +166,31 @@ struct CategoryInlineRow: View {
     }
     
     private func confirmSave() {
-        // Update Core Data
+        let oldName = category.name
+        
+        // Update Core Data Name (Icon/Color are already set on the object)
         category.name = nameText
+        
+        // Batch update receipts if name changed
+        if let oldName = oldName, oldName != nameText, !oldName.isEmpty {
+            let request: NSFetchRequest<Receipt> = Receipt.fetchRequest()
+            request.predicate = NSPredicate(format: "merchantCategory == %@", oldName)
+            
+            do {
+                let receiptsToUpdate = try category.managedObjectContext?.fetch(request) ?? []
+                for receipt in receiptsToUpdate {
+                    receipt.merchantCategory = nameText
+                }
+            } catch {
+                print("Error fetching receipts for update: \(error)")
+            }
+        }
+        
         do {
             try category.managedObjectContext?.save()
+            NotificationCenter.default.post(name: .categoryUpdated, object: nil)
+            // Also post receiptSaved because we might have updated receipts
+            NotificationCenter.default.post(name: .receiptSaved, object: nil)
         } catch {
             print("Error saving category: \(error)")
         }
@@ -175,6 +198,8 @@ struct CategoryInlineRow: View {
     }
     
     private func confirmDiscard() {
+        // Rollback changes to the category (icon/color)
+        category.managedObjectContext?.refresh(category, mergeChanges: false)
         exitEditMode()
     }
     

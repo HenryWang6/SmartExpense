@@ -95,6 +95,12 @@ struct ExpenseDetailView: View {
         } message: {
             Text("The camera is not available on this device. Please use a real device to test scanning.")
         }
+        .onReceive(NotificationCenter.default.publisher(for: .categoryUpdated)) { _ in
+            // Refresh category view if needed, though @FetchRequest handles list.
+            // If the category of *this* receipt was renamed, strict property observation on `receipt`
+            // should handle it because we updated the `merchantCategory` string in `CategoryInlineRow`.
+            // However, forcing a UI refresh or re-checking validity is safe.
+        }
     }
     
     private func startEditing() {
