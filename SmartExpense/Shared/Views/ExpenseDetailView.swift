@@ -207,6 +207,60 @@ struct ExpenseDetailView: View {
         )
     }
     
+    // MARK: - New Category Selection Logic
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \ExpenseCategory.sortOrder, ascending: true)],
+        animation: .default)
+    private var categories: FetchedResults<ExpenseCategory>
+    
+    private var categorySelectionGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 12) {
+            ForEach(categories) { category in
+                Button {
+                    editedCategory = category.name ?? ""
+                } label: {
+                    VStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: category.colorHex ?? "#999999"))
+                                .frame(width: 44, height: 44)
+                            
+                            if category.iconType == "sfSymbol" {
+                                Image(systemName: category.iconValue ?? "questionmark")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white)
+                            } else {
+                                Text(category.iconValue ?? "?")
+                                    .font(.system(size: 20))
+                            }
+                            
+                            if editedCategory == category.name {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white)
+                                    .background(Circle().fill(Color.blue))
+                                    .offset(x: 18, y: -18)
+                            }
+                        }
+                        
+                        Text(category.name ?? "Unknown")
+                            .font(.caption)
+                            .foregroundColor(editedCategory == category.name ? .primary : .secondary)
+                            .lineLimit(1)
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(editedCategory == category.name ? Color.blue : Color.clear, lineWidth: 2)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+    
+    // MARK: - Modified Merchant Section
     private var merchantSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Merchant Details")
@@ -228,8 +282,14 @@ struct ExpenseDetailView: View {
                         Text("Category")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.secondary)
-                        TextField("Category", text: $editedCategory)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        
+                        // NEW: Category Visual Selection
+                        if categories.isEmpty {
+                            TextField("Category", text: $editedCategory)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                        } else {
+                            categorySelectionGrid
+                        }
                     }
                 }
                 .padding(16)
@@ -245,7 +305,7 @@ struct ExpenseDetailView: View {
                     Divider()
                         .padding(.leading, 16)
                     
-                    detailRow(title: "Category", value: receipt.merchantCategory?.isEmpty == false ? receipt.merchantCategory! : "Uncategorized")
+                    categoryDisplayRow
                 }
                 .background(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -254,6 +314,48 @@ struct ExpenseDetailView: View {
                 )
             }
         }
+    }
+    
+    // Helper for read-only category display
+    private var categoryDisplayRow: some View {
+        HStack {
+            Text("Category")
+                .font(.system(size: 16, weight: .regular))
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            if let categoryName = receipt.merchantCategory, !categoryName.isEmpty,
+               let category = categories.first(where: { $0.name == categoryName }) {
+                // Enhanced display if we match a category object
+                HStack(spacing: 8) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: category.colorHex ?? "#999999"))
+                            .frame(width: 24, height: 24)
+                        
+                        if category.iconType == "sfSymbol" {
+                            Image(systemName: category.iconValue ?? "questionmark")
+                                .font(.system(size: 12))
+                                .foregroundColor(.white)
+                        } else {
+                            Text(category.iconValue ?? "?")
+                                .font(.system(size: 12))
+                        }
+                    }
+                    
+                    Text(categoryName)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.primary)
+                }
+            } else {
+                // Fallback text only
+                Text(receipt.merchantCategory?.isEmpty == false ? receipt.merchantCategory! : "Uncategorized")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+            }
+        }
+        .padding(16)
     }
     
     private var captureInfoSection: some View {
@@ -427,8 +529,8 @@ struct ExpenseDetailView: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
             )
         }
     }
