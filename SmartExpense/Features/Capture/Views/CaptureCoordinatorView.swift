@@ -12,17 +12,34 @@ struct CaptureCoordinatorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     
-    @State private var captureState: CaptureState = .menu
+    @State private var captureState: CaptureState
     @State private var selectedImage: UIImage?
     @State private var extractedData: ExtractedReceiptData?
     @State private var voiceTranscription: String = ""
     @State private var showCameraUnavailableAlert = false
-    @State private var captureMethod: String = "manual"
+    @State private var captureMethod: String
     
-    var startOption: CaptureOption? = nil
+    let initialMode: CaptureOption
+    
+    init(initialMode: CaptureOption) {
+        print("DEBUG: CaptureCoordinatorView init with mode: \(initialMode)")
+        self.initialMode = initialMode
+        _captureMethod = State(initialValue: initialMode.rawValue)
+        
+        // Set initial state based on mode
+        switch initialMode {
+        case .camera:
+            print("DEBUG: Setting initial state to .camera")
+            _captureState = State(initialValue: .camera)
+        case .voice:
+            _captureState = State(initialValue: .voiceRecording)
+        case .manual:
+            _captureState = State(initialValue: .receiptEdit)
+        }
+    }
     
     enum CaptureState {
-        case menu
+        // case menu // Removed
         case camera
         case photoLibrary
         case imagePreview
@@ -35,14 +52,7 @@ struct CaptureCoordinatorView: View {
     var body: some View {
         Group {
             switch captureState {
-            case .menu:
-                if startOption != nil {
-                    Color.clear
-                } else {
-                    CaptureMenuView { option in
-                        handleOptionSelected(option)
-                    }
-                }
+            // Case menu removed
                 
             case .camera, .photoLibrary:
                 // Empty view - camera/photo library presented via fullScreenCover
@@ -53,7 +63,13 @@ struct CaptureCoordinatorView: View {
                     ImagePreviewView(
                         image: image,
                         onRetake: {
-                            captureState = .menu
+                            // Reset to initial state or camera
+                            if initialMode == .camera {
+                                captureState = .camera
+                            } else {
+                                // Fallback or dismiss?
+                                dismiss()
+                            }
                         },
                         onProcess: {
                             captureState = .processing
@@ -66,7 +82,7 @@ struct CaptureCoordinatorView: View {
                 ProcessingView(
                     image: selectedImage,
                     onCancel: {
-                        captureState = .menu
+                        dismiss()
                     }
                 )
                 
@@ -121,100 +137,57 @@ struct CaptureCoordinatorView: View {
             get: { captureState == .camera },
             set: { isPresented in
                 if !isPresented && captureState == .camera {
-                    captureState = .menu
+                    // Handled by onCancel/dismiss
                 }
             }
         )) {
-            DocumentScannerView { image in
-                selectedImage = image
-                captureState = .imagePreview
-            }
+            DocumentScannerView(
+                onImageCaptured: { image in
+                    selectedImage = image
+                    captureState = .imagePreview
+                },
+                onCancel: {
+                    print("DEBUG: DocumentScannerView cancelled. Scheduling delayed dismiss.")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        print("DEBUG: Executing delayed dismiss for Coordinator.")
+                        dismiss()
+                    }
+                }
+            )
             .ignoresSafeArea()
         }
         .fullScreenCover(isPresented: Binding(
             get: { captureState == .photoLibrary },
             set: { isPresented in
-                if !isPresented && captureState == .photoLibrary {
-                    captureState = .menu
-                }
+                // Handled by onCancel/dismiss
             }
         )) {
-            ImagePickerView(sourceType: .photoLibrary) { image in
-                selectedImage = image
-                captureState = .imagePreview
-            }
+            ImagePickerView(
+                sourceType: .photoLibrary,
+                onImageSelected: { image in
+                    selectedImage = image
+                    captureState = .imagePreview
+                },
+                onCancel: {
+                    print("DEBUG: ImagePickerView cancelled. Scheduling delayed dismiss.")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        print("DEBUG: Executing delayed dismiss for Coordinator.")
+                        dismiss()
+                    }
+                }
+            )
         }
         .alert("Camera Not Available", isPresented: $showCameraUnavailableAlert) {
             Button("Use Photo Library", role: .none) {
                 captureState = .photoLibrary
             }
-            Button("Cancel", role: .cancel) {
-                captureState = .menu
-            }
         } message: {
             Text("The camera is not available on the simulator. Please use the photo library option or test on a real device.")
         }
-        .onAppear {
-            if let startOption = startOption, captureState == .menu {
-                handleOptionSelected(startOption)
-            }
-        }
+        // onAppear startOption logic removed
     }
     
-    private func handleOptionSelected(_ option: CaptureOption) {
-        switch option {
-        case .camera:
-            captureMethod = "camera"
-            checkCameraPermissionAndProceed()
-        case .voice:
-            captureMethod = "voice"
-            captureState = .voiceRecording
-        case .manual:
-            captureMethod = "manual"
-            // For now, go directly to receipt edit with empty data
-            captureState = .receiptEdit
-        }
-    }
-    
-    private func checkCameraPermissionAndProceed() {
-        // First check if camera is available (not available on simulator)
-        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
-            showCameraUnavailableAlert = true
-            return
-        }
-        
-        Task {
-            let status = PermissionsManager.shared.checkCameraPermission()
-            
-            if status == .authorized {
-                // Camera already authorized, present immediately
-                await MainActor.run {
-                    captureState = .camera
-                }
-            } else if status == .notDetermined {
-                // Request permission
-                let granted = await PermissionsManager.shared.requestCameraPermission()
-                
-                if granted {
-                    // Add small delay to ensure view hierarchy is ready after permission dialog
-                    try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
-                    
-                    await MainActor.run {
-                        captureState = .camera
-                    }
-                } else {
-                    await MainActor.run {
-                        dismiss()
-                    }
-                }
-            } else {
-                // Permission denied - show alert or dismiss
-                await MainActor.run {
-                    dismiss()
-                }
-            }
-        }
-    }
+
     
     private func processImage(_ image: UIImage) {
         Task {
@@ -236,6 +209,6 @@ struct CaptureCoordinatorView: View {
 }
 
 #Preview {
-    CaptureCoordinatorView()
+    CaptureCoordinatorView(initialMode: .manual)
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }

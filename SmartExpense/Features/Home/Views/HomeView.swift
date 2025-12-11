@@ -63,24 +63,30 @@ struct HomeView: View {
 
     private var captureButton: some View {
         Menu {
-            // Order: Manual, Voice, Camera (Scan) to match iOS 18 style / User preference
+            // Order: Camera (Scan), Voice, Manual to match iOS 18 style / User preference
+            // Because the whole "Add" is anchord to the bottom, so menue order is reversed.
+            
+            // Manual Entry
             Button(action: {
                 selectedCaptureOption = .manual
             }) {
                 Label(CaptureOption.manual.title, systemImage: CaptureOption.manual.icon)
             }
             
+            // Voice Input
             Button(action: {
                 selectedCaptureOption = .voice
             }) {
                 Label(CaptureOption.voice.title, systemImage: CaptureOption.voice.icon)
             }
             
+            // Scan (Camera)
             Button(action: {
                 selectedCaptureOption = .camera
             }) {
                 Label(CaptureOption.camera.title, systemImage: CaptureOption.camera.icon)
             }
+            
         } label: {
             ZStack {
                 Circle()
@@ -107,7 +113,7 @@ struct HomeView: View {
         .scaleEffect(1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: false)
         .fullScreenCover(item: $selectedCaptureOption) { option in
-            CaptureCoordinatorView(startOption: option)
+            CaptureCoordinatorView(initialMode: option)
         }
     }
     

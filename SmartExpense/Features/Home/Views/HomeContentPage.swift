@@ -341,7 +341,6 @@ struct HomeContentPage: View {
                         let targetDate = range.start.addingTimeInterval(offsetSeconds)
                         
                         // Snap to granularity
-                        let component: Calendar.Component = viewModel.selectedPeriod == .yearly ? .month : .day
                         if let snappedDate = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month, .day], from: targetDate)) {
                              // For yearly, we might want to just snap to month start
                              if viewModel.selectedPeriod == .yearly {

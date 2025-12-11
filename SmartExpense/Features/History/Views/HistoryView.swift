@@ -16,7 +16,7 @@ struct HistoryView: View {
         animation: .default)
     private var receipts: FetchedResults<Receipt>
     
-    @State private var showingCaptureFlow = false
+    @State private var selectedCaptureOption: CaptureOption?
     @State private var expandedSections: Set<String> = []
     
     let filter: HistoryFilter?
@@ -131,7 +131,28 @@ struct HistoryView: View {
                         }
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: { showingCaptureFlow = true }) {
+                        Menu {
+                            // Manual Entry
+                            Button(action: {
+                                selectedCaptureOption = .manual
+                            }) {
+                                Label(CaptureOption.manual.title, systemImage: CaptureOption.manual.icon)
+                            }
+                            
+                            // Voice Input
+                            Button(action: {
+                                selectedCaptureOption = .voice
+                            }) {
+                                Label(CaptureOption.voice.title, systemImage: CaptureOption.voice.icon)
+                            }
+                            
+                            // Scan (Camera)
+                            Button(action: {
+                                selectedCaptureOption = .camera
+                            }) {
+                                Label(CaptureOption.camera.title, systemImage: CaptureOption.camera.icon)
+                            }
+                        } label: {
                             Image(systemName: "plus.circle.fill")
                                 .font(.system(size: 20, weight: .semibold))
                                 .foregroundColor(.accentColor)
@@ -139,8 +160,8 @@ struct HistoryView: View {
                     }
                 }
             }
-            .fullScreenCover(isPresented: $showingCaptureFlow) {
-                CaptureCoordinatorView()
+            .fullScreenCover(item: $selectedCaptureOption) { option in
+                CaptureCoordinatorView(initialMode: option)
             }
         }
     }

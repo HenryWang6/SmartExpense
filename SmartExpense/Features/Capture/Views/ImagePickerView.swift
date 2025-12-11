@@ -13,6 +13,7 @@ struct ImagePickerView: UIViewControllerRepresentable {
     
     let sourceType: UIImagePickerController.SourceType
     let onImageSelected: (UIImage) -> Void
+    var onCancel: (() -> Void)? = nil
     
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
@@ -46,7 +47,11 @@ struct ImagePickerView: UIViewControllerRepresentable {
         }
         
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            parent.dismiss()
+            if let onCancel = parent.onCancel {
+                onCancel()
+            } else {
+                parent.dismiss()
+            }
         }
     }
 }

@@ -14,6 +14,7 @@ struct DocumentScannerView: UIViewControllerRepresentable {
     @Environment(\.dismiss) private var dismiss
     
     let onImageCaptured: (UIImage) -> Void
+    var onCancel: (() -> Void)? = nil
     
     func makeUIViewController(context: Context) -> ScannerViewController {
         let controller = ScannerViewController()
@@ -39,7 +40,14 @@ struct DocumentScannerView: UIViewControllerRepresentable {
         }
         
         func scannerViewControllerDidCancel() {
-            parent.dismiss()
+            print("DEBUG: DocumentScannerView coordinator didCancel called.")
+            if let onCancel = parent.onCancel {
+                print("DEBUG: Calling custom onCancel")
+                onCancel()
+            } else {
+                print("DEBUG: Calling parent.dismiss()")
+                parent.dismiss()
+            }
         }
     }
 }

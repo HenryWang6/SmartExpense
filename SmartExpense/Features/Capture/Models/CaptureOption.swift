@@ -19,7 +19,7 @@ enum CaptureOption: String, CaseIterable, Identifiable {
         case .camera:
             return "Scan Receipt"
         case .voice:
-            return "Voice Expense"
+            return "Voice Entry"
         case .manual:
             return "Manual Entry"
         }
