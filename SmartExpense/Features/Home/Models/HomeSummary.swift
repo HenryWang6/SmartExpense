@@ -13,7 +13,7 @@ struct HomeSummary {
     let topCategoryAmount: Decimal?
     let biggestPurchase: (amount: Decimal, merchant: String, date: Date)?
     let biggestPurchaseReceiptId: NSManagedObjectID?
-    let categorySpending: [(category: String, amount: Decimal)]
+    let categorySpending: [(category: String, amount: Decimal, colorHex: String?, icon: String?)]
     let spendingTrend: [(date: Date, amount: Decimal)]
 }
 

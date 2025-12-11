@@ -232,6 +232,7 @@ struct VoiceExpenseReviewView: View {
         // Save context
         do {
             try viewContext.save()
+            NotificationCenter.default.post(name: .receiptSaved, object: nil)
             dismiss()
         } catch {
             errorMessage = "Failed to save expense: \(error.localizedDescription)"

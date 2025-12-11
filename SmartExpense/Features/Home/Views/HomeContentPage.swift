@@ -198,11 +198,12 @@ struct HomeContentPage: View {
     }
     
     private var categoryDistributionChart: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 20) {
             Text("Spending by Category")
                 .font(.headline)
                 .foregroundColor(.primary)
             
+            // Chart Section
             Chart(data.categorySpending, id: \.category) { item in
                 SectorMark(
                     angle: .value("Amount", item.amount),
@@ -210,15 +211,20 @@ struct HomeContentPage: View {
                     angularInset: 1.5
                 )
                 .cornerRadius(5)
-                .foregroundStyle(by: .value("Category", item.category))
+                .foregroundStyle(Color(hex: item.color ?? "#999999"))
                 .opacity(selectedCategory == nil || selectedCategory == item.category ? 1.0 : 0.3)
                 .annotation(position: .overlay) {
                     VStack(spacing: 2) {
-                        Text(item.category)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
+                        if let icon = item.icon, !icon.isEmpty {
+                            if icon.count == 1 || icon.unicodeScalars.first?.properties.isEmoji == true {
+                                Text(icon)
+                                    .font(.system(size: 14))
+                            } else {
+                                Image(systemName: icon)
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                        }
                         
                         Text("$\(Int(item.amount))")
                             .font(.system(size: 9, weight: .medium))
@@ -234,9 +240,22 @@ struct HomeContentPage: View {
                     if let selectedCategory = selectedCategory,
                        let selectedItem = data.categorySpending.first(where: { $0.category == selectedCategory }) {
                         VStack(spacing: 4) {
-                            Text(selectedItem.category)
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.primary)
+                            HStack(spacing: 6) {
+                                if let icon = selectedItem.icon, !icon.isEmpty {
+                                    if icon.count == 1 || icon.unicodeScalars.first?.properties.isEmoji == true {
+                                        Text(icon)
+                                             .font(.headline)
+                                    } else {
+                                        Image(systemName: icon)
+                                            .font(.headline)
+                                            .foregroundColor(Color(hex: selectedItem.color ?? "#999999"))
+                                    }
+                                }
+                                
+                                Text(selectedItem.category)
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.primary)
+                            }
                             
                             Text("$\(Int(selectedItem.amount))")
                                 .font(.system(size: 14, weight: .semibold))
@@ -247,6 +266,71 @@ struct HomeContentPage: View {
                 }
             }
             .chartLegend(.hidden)
+            
+            // Category List Section
+            VStack(spacing: 0) {
+                ForEach(data.categorySpending, id: \.category) { item in
+                    Button(action: {
+                        let range = viewModel.dateRange(for: viewModel.selectedPeriod, date: date)
+                        historyFilter = HistoryFilter(
+                            category: item.category,
+                            dateRange: (start: range.start, end: range.end),
+                            receiptId: nil
+                        )
+                    }) {
+                        HStack(spacing: 12) {
+                            // Icon Circle
+                            ZStack {
+                                Circle()
+                                    .fill(Color(hex: item.color ?? "#999999").opacity(0.15))
+                                    .frame(width: 40, height: 40)
+                                
+                                if let icon = item.icon, !icon.isEmpty {
+                                    if icon.count == 1 || icon.unicodeScalars.first?.properties.isEmoji == true {
+                                        Text(icon)
+                                            .font(.system(size: 18))
+                                    } else {
+                                        Image(systemName: icon)
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundColor(Color(hex: item.color ?? "#999999"))
+                                    }
+                                } else {
+                                    Text(String(item.category.prefix(1)))
+                                        .font(.system(size: 18, weight: .semibold))
+                                        .foregroundColor(Color(hex: item.color ?? "#999999"))
+                                }
+                            }
+                            
+                            // Category Name
+                            Text(item.category)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
+                            
+                            // Amount and Chevron
+                            HStack(spacing: 8) {
+                                Text("$\(Int(item.amount))")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(.secondary.opacity(0.5))
+                            }
+                        }
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle()) // Make the whole row tappable
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    // Divider between items, but not after the last one
+                    if item.category != data.categorySpending.last?.category {
+                        Divider()
+                            .padding(.leading, 52) // Indent divider to align with text
+                    }
+                }
+            }
         }
         .padding(20)
         .background(

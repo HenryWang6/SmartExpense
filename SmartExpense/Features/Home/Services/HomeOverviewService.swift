@@ -23,11 +23,11 @@ struct HomeOverviewMockService: HomeOverviewServiceProtocol {
             biggestPurchase: (amount: 120.50, merchant: "Tech Store", date: Date().addingTimeInterval(-86400 * 3)),
             biggestPurchaseReceiptId: nil,
             categorySpending: [
-                ("Food & Dining", 530.20),
-                ("Shopping", 320.50),
-                ("Transport", 150.00),
-                ("Entertainment", 120.00),
-                ("Others", 113.86)
+                ("Food & Dining", 530.20, "#e74c3c", "carrot"),
+                ("Shopping", 320.50, "#3498db", "cart"),
+                ("Transport", 150.00, "#f1c40f", "car"),
+                ("Entertainment", 120.00, "#9b59b6", "gamecontroller"),
+                ("Others", 113.86, "#95a5a6", "circle")
             ],
             spendingTrend: [
                 (Date().addingTimeInterval(-86400 * 30), 500),

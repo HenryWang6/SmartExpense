@@ -58,9 +58,43 @@ struct HomeOverviewCoreDataService: HomeOverviewServiceProtocol, @unchecked Send
             }
         }
         
+        // Fetch all categories to lookup color/icon
+        let categoryRequest = ExpenseCategory.fetchRequest()
+        let allCategories = (try? viewContext.fetch(categoryRequest)) ?? []
+        // Create Dictionary for O(1) lookup: Name -> ExpenseCategory
+        let categoryLookup = Dictionary(grouping: allCategories, by: { $0.name ?? "" })
+            .compactMapValues { $0.first }
+
         let topCategory = categoryMap.max(by: { $0.value < $1.value })
         
-        let sortedCategories = categoryMap.sorted(by: { $0.value > $1.value }).map { (category: $0.key, amount: $0.value) }
+        let sortedCategories = categoryMap.sorted(by: { $0.value > $1.value }).map { item -> (category: String, amount: Decimal, colorHex: String?, icon: String?) in
+            let categoryParams = categoryLookup[item.key]
+            // We can decide to pass iconType too if needed, but for now passing iconValue as 'icon'
+            // The view will need to handle if it's emoji or SFSymbol. 
+            // Better to standardise: if sfSymbol, pass as is. If emoji, pass as is. 
+            // The View currently checks iconType. 
+            // Let's pass iconValue and maybe handle type separately or just assume iconValue is enough if unique? 
+            // Wait, previous implem in VisualPicker had iconType. 
+            // In ExpenseDetailView read-only, we checked iconType. 
+            // Let's just pass iconValue. The view will probably try Image(systemName:) and if fails Text()? 
+            // No, SwiftUI Image(systemName) doesn't fail gracefully like that.
+            // Let's update tuple to include iconType if needed, or better, 
+            // since we are modifying HomeSummary, let's stick to what we have or infer.
+            // Actually, SF Symbols usually don't have spaces or emojis. Emojis are unicode.
+            // But 'house' vs '😀'. 
+            // Let's rely on the Lookup in ViewModel? No, service returns HomeSummary.
+            // Let's use the entity's iconType to decide.
+            // If we only have 'icon' string in tuple, we might be ambiguous. 
+            // Let's stick to just passing iconValue for now and let ViewModel/View handle 
+            // or if we really need type, we can check if it looks like SF Symbol (lowercase/dots) vs Emoji.
+            // OR update HomeSummary again? simpler: ExpenseCategory has iconType.
+            // Let's presume icon string is enough if we use a helper. 
+            // HOWEVER, ExpenseCategory has `iconType` ("sfSymbol", "emoji").
+            // Let's pass that too? The prompt didn't strictly specify data structure, just "reflect icon".
+            // Implementation plan said "Update HomeView pie chart to use category color and display icon".
+            // I'll stick to passing `iconValue` as `icon`. VisualPicker ensures valid SF Symbol names.
+            return (item.key, item.value, categoryParams?.colorHex, categoryParams?.iconValue)
+        }
         
         // 7. Biggest Purchase
         let biggestReceipt = receipts.max(by: { $0.totalAmount < $1.totalAmount })

@@ -144,6 +144,7 @@ class ReceiptReviewViewModel: ObservableObject {
         // Save context
         do {
             try viewContext.save()
+            NotificationCenter.default.post(name: .receiptSaved, object: nil)
             return true
         } catch {
             errorMessage = "Failed to save receipt: \(error.localizedDescription)"

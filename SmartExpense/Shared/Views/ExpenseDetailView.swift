@@ -116,6 +116,7 @@ struct ExpenseDetailView: View {
         
         do {
             try viewContext.save()
+            NotificationCenter.default.post(name: .receiptSaved, object: nil)
         } catch {
             print("Error saving receipt: \(error)")
         }
@@ -162,6 +163,7 @@ struct ExpenseDetailView: View {
             
             do {
                 try viewContext.save()
+                NotificationCenter.default.post(name: .receiptSaved, object: nil)
             } catch {
                 print("Error saving receipt image path: \(error)")
             }
@@ -538,6 +540,7 @@ struct ExpenseDetailView: View {
     private func saveContext() {
         do {
             try viewContext.save()
+            NotificationCenter.default.post(name: .receiptSaved, object: nil)
         } catch {
             print("Error saving note: \(error)")
         }

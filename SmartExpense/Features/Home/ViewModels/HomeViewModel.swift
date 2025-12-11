@@ -57,7 +57,7 @@ final class HomeViewModel: ObservableObject {
         let biggestPurchaseDate: String
         let biggestPurchaseReceiptId: NSManagedObjectID?
         let topCategoryNameOnly: String?
-        let categorySpending: [(category: String, amount: Double)]
+        let categorySpending: [(category: String, amount: Double, color: String?, icon: String?)]
         let spendingTrend: [(date: Date, amount: Double)]
         
         static let empty = PageData(
@@ -81,6 +81,8 @@ final class HomeViewModel: ObservableObject {
                 lhs.topCategoryNameOnly == rhs.topCategoryNameOnly &&
                 lhs.categorySpending.map { $0.category } == rhs.categorySpending.map { $0.category } &&
                 lhs.categorySpending.map { $0.amount } == rhs.categorySpending.map { $0.amount } &&
+                lhs.categorySpending.map { $0.color } == rhs.categorySpending.map { $0.color } &&
+                lhs.categorySpending.map { $0.icon } == rhs.categorySpending.map { $0.icon } &&
                 lhs.spendingTrend.map { $0.date } == rhs.spendingTrend.map { $0.date } &&
                 lhs.spendingTrend.map { $0.amount } == rhs.spendingTrend.map { $0.amount }
         }
@@ -102,7 +104,7 @@ final class HomeViewModel: ObservableObject {
     var biggestPurchaseReceiptId: NSManagedObjectID? { currentData.biggestPurchaseReceiptId }
     var biggestPurchaseAmount: String { currentData.biggestPurchaseAmount }
     var biggestPurchaseMerchant: String { currentData.biggestPurchaseMerchant }
-    var categorySpending: [(category: String, amount: Double)] { currentData.categorySpending }
+    var categorySpending: [(category: String, amount: Double, color: String?, icon: String?)] { currentData.categorySpending }
     var spendingTrend: [(date: Date, amount: Double)] { currentData.spendingTrend }
 
 
@@ -110,6 +112,8 @@ final class HomeViewModel: ObservableObject {
     private let currencyFormatter: NumberFormatter
     private let calendar = Calendar.current
 
+    private var cancellables = Set<AnyCancellable>()
+    
     init(service: HomeOverviewServiceProtocol,
          currencyFormatter: NumberFormatter = HomeViewModel.defaultCurrencyFormatter()) {
         self.service = service
@@ -121,6 +125,14 @@ final class HomeViewModel: ObservableObject {
         // Initialize period title and date range immediately so they're available for navigation
         updatePeriodTitle()
         currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
+        
+        // Subscribe to receipt saved notification
+        NotificationCenter.default.publisher(for: .receiptSaved)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.refresh()
+            }
+            .store(in: &cancellables)
     }
 
     func onAppear() {
@@ -353,7 +365,7 @@ final class HomeViewModel: ObservableObject {
             biggestPurchaseReceiptId = nil
         }
         
-        let categorySpending = summary.categorySpending.map { ($0.category, NSDecimalNumber(decimal: $0.amount).doubleValue) }
+        let categorySpending = summary.categorySpending.map { ($0.category, NSDecimalNumber(decimal: $0.amount).doubleValue, $0.colorHex, $0.icon) }
         let spendingTrend = summary.spendingTrend.map { ($0.date, NSDecimalNumber(decimal: $0.amount).doubleValue) }
         
         return PageData(
