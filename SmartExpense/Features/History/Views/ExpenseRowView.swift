@@ -21,15 +21,26 @@ struct ExpenseRowView: View {
         HStack(spacing: 16) {
             // Icon with Badge
             ZStack(alignment: .bottomTrailing) {
-                // Main Merchant Circle
+                // Main Category/Merchant Circle
                 ZStack {
                     Circle()
-                        .fill(Color.accentColor.opacity(0.1))
+                        .fill(categoryColor)
                         .frame(width: 48, height: 48)
                     
-                    Text(merchantInitial)
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundColor(.accentColor)
+                    if let category = receipt.category {
+                        if category.iconType == "sfSymbol" {
+                            Image(systemName: category.iconValue ?? "questionmark")
+                                .font(.system(size: 20)) // Adjust size as needed
+                                .foregroundColor(.white)
+                        } else {
+                            Text(category.iconValue ?? "")
+                                .font(.system(size: 20))
+                        }
+                    } else {
+                        Text(merchantInitial)
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                            .foregroundColor(.accentColor)
+                    }
                 }
                 
                 // Input Source Badge
@@ -89,5 +100,12 @@ struct ExpenseRowView: View {
         } else {
             return ("square.and.pencil", Color(red: 0.6, green: 0.4, blue: 0.2))
         }
+    }
+    
+    private var categoryColor: Color {
+        if let colorHex = receipt.category?.colorHex {
+            return Color(hex: colorHex)
+        }
+        return Color.accentColor.opacity(0.1)
     }
 }
