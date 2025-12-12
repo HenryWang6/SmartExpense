@@ -282,7 +282,7 @@ struct HomeContentPage: View {
                             // Icon Circle
                             ZStack {
                                 Circle()
-                                    .fill(Color(hex: item.color ?? "#999999").opacity(0.15))
+                                    .fill(Color(hex: item.color ?? "#999999"))
                                     .frame(width: 40, height: 40)
                                 
                                 if let icon = item.icon, !icon.isEmpty {
@@ -292,12 +292,12 @@ struct HomeContentPage: View {
                                     } else {
                                         Image(systemName: icon)
                                             .font(.system(size: 18, weight: .semibold))
-                                            .foregroundStyle(Color(hex: item.color ?? "#999999"))
+                                            .foregroundStyle(.white)
                                     }
                                 } else {
                                     Text(String(item.category.prefix(1)))
                                         .font(.system(size: 18, weight: .semibold))
-                                        .foregroundStyle(Color(hex: item.color ?? "#999999"))
+                                        .foregroundStyle(.white)
                                 }
                             }
                             

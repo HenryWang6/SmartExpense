@@ -106,3 +106,17 @@ Based on the North American lifestyle, these are the recommended defaults to see
 - Health: 💊 (#E74C3C - Coral Red)
 - Entertainment: 🎬 (#F39C12 - Tangerine)
 - Insurance: 🛡️ (#5B5EA6 - Indigo)
+
+5. Add New Category in Expense Details View Editing Mode and Receipt Entry View
+- Goal: Enable quick, inline editing to minimize taps and navigation when user wants a new category.
+- Access via 2 places: 
+    - Expense Details View > Category Picker > Add New Category
+    - Receipt Entry View > Category Picker > Add New Category
+- UX and Interaction: 
+    - The last icon in the Category Picker is a plus sign (Add New Category).
+    - Tapping this icon opens a lightweight, non-modal sheet with a TextField and a Category Visual Picker.
+    - The Category Visual Picker is the same as the one used in the Manager (Settings > Category Management).
+    - The sheet has a Cancel and Save button.
+    - The Save button commits the new category to the database and closes the sheet.
+    - The Cancel button closes the sheet without saving.
+    - The sheet is dismissed by tapping outside of it.

@@ -11,8 +11,15 @@ import CoreData
 struct ReceiptReviewView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: ReceiptReviewViewModel
+    @Environment(\.managedObjectContext) private var viewContext
+    
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \ExpenseCategory.sortOrder, ascending: true)],
+        animation: .default)
+    private var categories: FetchedResults<ExpenseCategory>
     
     @State private var isSaving = false
+    @State private var showCreateCategorySheet = false
     
     var body: some View {
         NavigationView {
@@ -121,13 +128,22 @@ struct ReceiptReviewView: View {
                     .textCase(.uppercase)
                     .tracking(0.5)
                 
-                TextField("Merchant category", text: $viewModel.merchantCategory)
-                    .font(.system(size: 16, weight: .medium))
-                    .padding(14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color(.systemGray6))
-                    )
+                if categories.isEmpty {
+                    TextField("Merchant category", text: $viewModel.merchantCategory)
+                        .font(.system(size: 16, weight: .medium))
+                        .padding(14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color(.systemGray6))
+                        )
+                } else {
+                    categorySelectionGrid
+                        .padding(8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color(.systemGray6).opacity(0.5)) // Slightly different background for grid
+                        )
+                }
             }
             
             // Date
@@ -257,6 +273,91 @@ struct ReceiptReviewView: View {
                         .stroke(Color.green.opacity(0.2), lineWidth: 1)
                 )
         )
+    }
+    
+    // MARK: - Category Selection Grid
+    
+    private var categorySelectionGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 12) {
+            ForEach(categories) { category in
+                Button {
+                    // Update main Merchant Category field
+                    viewModel.merchantCategory = category.name ?? ""
+                    
+                    // Also update the icon/color if the ViewModel supports it or if we are displaying a live preview
+                    // For now, this just updates the text field binding which is what the ViewModel uses.
+                } label: {
+                    VStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: category.colorHex ?? "#999999"))
+                                .frame(width: 44, height: 44)
+                            
+                            if category.iconType == "sfSymbol" {
+                                Image(systemName: category.iconValue ?? "questionmark")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white)
+                            } else {
+                                Text(category.iconValue ?? "?")
+                                    .font(.system(size: 20))
+                            }
+                            
+                            if viewModel.merchantCategory == category.name {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white)
+                                    .background(Circle().fill(Color.blue))
+                                    .offset(x: 18, y: -18)
+                            }
+                        }
+                        
+                        Text(category.name ?? "Unknown")
+                            .font(.caption)
+                            .foregroundColor(viewModel.merchantCategory == category.name ? .primary : .secondary)
+                            .lineLimit(1)
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(viewModel.merchantCategory == category.name ? Color.blue : Color.clear, lineWidth: 2)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            
+            // Add Category Button
+            Button {
+                showCreateCategorySheet = true
+            } label: {
+                VStack(spacing: 8) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(.systemGray5))
+                            .frame(width: 44, height: 44)
+                        
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.blue)
+                    }
+                    
+                    Text("Add New")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .lineLimit(1)
+                }
+                .padding(8)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.vertical, 8)
+        .sheet(isPresented: $showCreateCategorySheet) {
+            CategoryCreationSheet(parentContext: viewContext) { newCategory in
+                // Select the new category
+                if let name = newCategory.name {
+                    viewModel.merchantCategory = name
+                }
+            }
+        }
     }
     
     // MARK: - Conditional Content Views

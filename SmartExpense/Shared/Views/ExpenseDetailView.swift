@@ -18,6 +18,7 @@ struct ExpenseDetailView: View {
     @State private var editedMerchant: String = ""
     @State private var editedCategory: String = ""
     @State private var editedDate: Date = Date()
+    @State private var showCreateCategorySheet: Bool = false
     
     var body: some View {
         ZStack {
@@ -278,8 +279,40 @@ struct ExpenseDetailView: View {
                 }
                 .buttonStyle(.plain)
             }
+            
+            // Add Category Button
+            Button {
+                showCreateCategorySheet = true
+            } label: {
+                VStack(spacing: 8) {
+                    ZStack {
+                        Circle()
+                            .fill(Color(.systemGray5))
+                            .frame(width: 44, height: 44)
+                        
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.blue)
+                    }
+                    
+                    Text("Add New")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                        .lineLimit(1)
+                }
+                .padding(8)
+            }
+            .buttonStyle(.plain)
         }
         .padding(.vertical, 8)
+        .sheet(isPresented: $showCreateCategorySheet) {
+            CategoryCreationSheet(parentContext: viewContext) { newCategory in
+                // Select the new category
+                if let name = newCategory.name {
+                    editedCategory = name
+                }
+            }
+        }
     }
     
     // MARK: - Modified Merchant Section
