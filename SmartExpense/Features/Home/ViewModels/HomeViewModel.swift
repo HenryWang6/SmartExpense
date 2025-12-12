@@ -122,25 +122,42 @@ final class HomeViewModel: ObservableObject {
         // Initialize available dates (current + past 24 periods)
         generateAvailableDates()
         
-        // Initialize period title and date range immediately so they're available for navigation
+        // Initial Load
+        // We set currentDateRange and trigger load in onAppear typically, 
+        // but initializing here is good practice.
         updatePeriodTitle()
         currentDateRange = dateRange(for: selectedPeriod, date: currentReferenceDate)
         
-        // Subscribe to receipt saved notification
-        NotificationCenter.default.publisher(for: .receiptSaved)
+        // Subscribe to Core Data Save Notifications (Context Did Save)
+        NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
             .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.refresh()
+            .sink { [weak self] notification in
+                self?.handleContextDidSave(notification)
             }
             .store(in: &cancellables)
-            
-        // Subscribe to category updates
-        NotificationCenter.default.publisher(for: .categoryUpdated)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.refresh()
-            }
-            .store(in: &cancellables)
+    }
+    
+    private func handleContextDidSave(_ notification: Notification) {
+        // Smart Refresh: Only refresh if relevant objects changed (Receipts or Categories)
+        guard let userInfo = notification.userInfo else { return }
+        
+        let inserted = userInfo[NSInsertedObjectsKey] as? Set<NSManagedObject> ?? []
+        let updated = userInfo[NSUpdatedObjectsKey] as? Set<NSManagedObject> ?? []
+        let deleted = userInfo[NSDeletedObjectsKey] as? Set<NSManagedObject> ?? []
+        
+        let allChanges = inserted.union(updated).union(deleted)
+        
+        // Check if any change involves Receipt or ExpenseCategory
+        let hasRelevantChanges = allChanges.contains { object in
+            return object is Receipt || object is ExpenseCategory
+        }
+        
+        if hasRelevantChanges {
+            // Check if the changes actually affect the *current view* (e.g. date range)
+            // or just trigger a refresh to be safe but efficient.
+            // For dashboard, changes to almost any receipt could affect totals/trends.
+            refresh()
+        }
     }
 
     func onAppear() {

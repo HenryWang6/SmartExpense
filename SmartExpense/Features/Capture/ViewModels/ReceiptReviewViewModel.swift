@@ -112,39 +112,21 @@ class ReceiptReviewViewModel: ObservableObject {
             savedImagePath = FileStorageService.shared.saveReceiptImage(image)
         }
         
-        // Create Receipt entity
-        let receipt = Receipt(context: viewContext)
-        receipt.id = UUID()
-        receipt.merchantName = merchantName.trimmingCharacters(in: .whitespacesAndNewlines)
-        receipt.merchantCategory = merchantCategory.trimmingCharacters(in: .whitespacesAndNewlines)
-        receipt.date = date
-        receipt.totalAmount = Double(totalAmount) ?? 0
-        receipt.imagePath = savedImagePath
-        receipt.isVoiceInput = isVoiceInput
-        receipt.captureMethod = captureMethod
-        receipt.voiceTranscript = voiceTranscript
-        receipt.createdAt = Date()
-        receipt.updatedAt = Date()
+        let service = ReceiptDataService(context: viewContext)
         
-//        // Create ReceiptItem entities
-//        for (index, item) in items.enumerated() {
-//            if !item.description.isEmpty {
-//                let receiptItem = ReceiptItem(context: viewContext)
-//                receiptItem.id = UUID()
-//                receiptItem.itemDescription = item.description
-//                receiptItem.category = item.category
-//                receiptItem.quantity = item.quantity
-//                receiptItem.unitPrice = item.unitPrice
-//                receiptItem.subtotal = item.subtotal
-//                receiptItem.sortOrder = Int16(index)
-//                receiptItem.receipt = receipt
-//            }
-//        }
-        
-        // Save context
         do {
-            try viewContext.save()
-            NotificationCenter.default.post(name: .receiptSaved, object: nil)
+            try service.createReceipt(
+                merchantName: merchantName,
+                amount: Double(totalAmount) ?? 0,
+                date: date,
+                category: merchantCategory.isEmpty ? nil : merchantCategory,
+                imagePath: savedImagePath,
+                isVoiceInput: isVoiceInput,
+                captureMethod: captureMethod,
+                note: voiceTranscript
+            )
+            // Service handles save, and HomeViewModel observes ContextDidSave.
+            // No manual notification needed.
             return true
         } catch {
             errorMessage = "Failed to save receipt: \(error.localizedDescription)"

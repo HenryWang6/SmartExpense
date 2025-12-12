@@ -168,32 +168,21 @@ struct CategoryInlineRow: View {
     private func confirmSave() {
         let oldName = category.name
         
-        // Update Core Data Name (Icon/Color are already set on the object)
-        category.name = nameText
-        
-        // Batch update receipts if name changed
-        if let oldName = oldName, oldName != nameText, !oldName.isEmpty {
-            let request: NSFetchRequest<Receipt> = Receipt.fetchRequest()
-            request.predicate = NSPredicate(format: "merchantCategory == %@", oldName)
-            
-            do {
-                let receiptsToUpdate = try category.managedObjectContext?.fetch(request) ?? []
-                for receipt in receiptsToUpdate {
-                    receipt.merchantCategory = nameText
-                }
-            } catch {
-                print("Error fetching receipts for update: \(error)")
-            }
-        }
+        let service = CategoryDataService(context: category.managedObjectContext!)
         
         do {
-            try category.managedObjectContext?.save()
-            NotificationCenter.default.post(name: .categoryUpdated, object: nil)
-            // Also post receiptSaved because we might have updated receipts
-            NotificationCenter.default.post(name: .receiptSaved, object: nil)
+            // Service handles name update and batch receipt updates internally
+            try service.updateCategoryName(category, to: nameText)
+            
+            // Also save any other changes (icon/color) that might have been set directly on the object.
+            // updateCategoryName calls save(), but if name didn't change, we still ensure save.
+             if category.hasChanges {
+                 try service.save()
+             }
         } catch {
             print("Error saving category: \(error)")
         }
+        
         exitEditMode()
     }
     
