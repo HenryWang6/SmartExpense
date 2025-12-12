@@ -292,12 +292,12 @@ struct HomeContentPage: View {
                                     } else {
                                         Image(systemName: icon)
                                             .font(.system(size: 18, weight: .semibold))
-                                            .foregroundColor(Color(hex: item.color ?? "#999999"))
+                                            .foregroundStyle(Color(hex: item.color ?? "#999999"))
                                     }
                                 } else {
                                     Text(String(item.category.prefix(1)))
                                         .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(Color(hex: item.color ?? "#999999"))
+                                        .foregroundStyle(Color(hex: item.color ?? "#999999"))
                                 }
                             }
                             
