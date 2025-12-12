@@ -15,7 +15,7 @@ private let dateFormatter: DateFormatter = {
 }()
 
 struct ExpenseRowView: View {
-    let receipt: Receipt
+    @ObservedObject var receipt: Receipt
     
     var body: some View {
         HStack(spacing: 16) {

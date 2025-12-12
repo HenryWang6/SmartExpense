@@ -118,6 +118,20 @@ struct ExpenseDetailView: View {
         receipt.totalAmount = editedAmount
         receipt.merchantName = editedMerchant
         receipt.merchantCategory = editedCategory
+        
+        // Resolve Relationship
+        if !editedCategory.isEmpty {
+            let request: NSFetchRequest<ExpenseCategory> = ExpenseCategory.fetchRequest()
+            request.predicate = NSPredicate(format: "name == %@", editedCategory)
+            if let categoryObj = try? viewContext.fetch(request).first {
+                receipt.category = categoryObj
+            } else {
+                receipt.category = nil // Unlink if not found (or handle creation if desired, but simplified)
+            }
+        } else {
+            receipt.category = nil
+        }
+        
         receipt.date = editedDate
         
         do {

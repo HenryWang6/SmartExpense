@@ -164,6 +164,9 @@ struct HistoryView: View {
                 CaptureCoordinatorView(initialMode: option)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)) { _ in
+            viewContext.refreshAllObjects()
+        }
     }
     
     private var groupedReceipts: [ReceiptGroup] {

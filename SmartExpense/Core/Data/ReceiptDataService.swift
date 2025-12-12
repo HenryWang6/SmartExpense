@@ -44,6 +44,9 @@ class ReceiptDataService: DataService {
         receipt.createdAt = Date()
         receipt.updatedAt = Date()
         
+        // Link Relation
+        linkCategory(name: category, to: receipt)
+        
         try save()
         return receipt
     }
@@ -73,6 +76,11 @@ class ReceiptDataService: DataService {
         let request: NSFetchRequest<Receipt> = Receipt.fetchRequest()
         request.predicate = NSPredicate(format: "merchantCategory == %@", oldName)
         
+        // Also fetch the NEW category entity to link it
+        let categoryRequest: NSFetchRequest<ExpenseCategory> = ExpenseCategory.fetchRequest()
+        categoryRequest.predicate = NSPredicate(format: "name == %@", newName)
+        let newCategoryEntity = try? context.fetch(categoryRequest).first
+        
         let receipts = try context.fetch(request)
         
         // If no receipts found, we don't need to do anything, but let's check
@@ -80,9 +88,29 @@ class ReceiptDataService: DataService {
         
         for receipt in receipts {
             receipt.merchantCategory = newName
+            receipt.category = newCategoryEntity // Link Relation
             receipt.updatedAt = Date()
         }
         
         try save()
+    }
+    
+    // MARK: - Helper
+    
+    private func linkCategory(name: String?, to receipt: Receipt) {
+        guard let name = name, !name.isEmpty else {
+            receipt.category = nil
+            return
+        }
+        
+        let request: NSFetchRequest<ExpenseCategory> = ExpenseCategory.fetchRequest()
+        request.predicate = NSPredicate(format: "name == %@", name)
+        
+        do {
+            let matches = try context.fetch(request)
+            receipt.category = matches.first
+        } catch {
+            print("Error linking category: \(error)")
+        }
     }
 }

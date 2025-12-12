@@ -174,11 +174,15 @@ struct CategoryInlineRow: View {
             // Service handles name update and batch receipt updates internally
             try service.updateCategoryName(category, to: nameText)
             
-            // Also save any other changes (icon/color) that might have been set directly on the object.
-            // updateCategoryName calls save(), but if name didn't change, we still ensure save.
-             if category.hasChanges {
-                 try service.save()
-             }
+            // Also force refresh for visual changes (Icon/Color)
+            // Even if name changed, we want to ensure visual updates propagate if changed too.
+            // But updateCategoryName saves, so 'hasChanges' might be cleared if we only changed name.
+            // If we changed icon/color, they are set on the object BUT NOT SAVED YET by updateCategoryName?
+            // Wait, updateCategoryName calls save().
+            // So if we set icon/color on the object BEFORE calling confirmSave (which we do in the picker),
+            // they will be saved by updateCategoryName.
+            // BUT we need to trigger the "touch" logic.
+            try service.updateCategoryVisuals(category)
         } catch {
             print("Error saving category: \(error)")
         }

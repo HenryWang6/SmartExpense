@@ -35,6 +35,15 @@ class CategoryDataService: DataService {
         }
     }
     
+    /// Updates category visuals (icon/color) and forces a refresh on associated receipts
+    /// This is necessary because Views observing Receipts via @FetchRequest won't trigger just because a related object changed.
+    func updateCategoryVisuals(_ category: ExpenseCategory) throws {
+        // Since HistoryView now observes NSManagedObjectContextDidSave and refreshes all objects,
+        // we no longer need to manually touch receipts to force an update.
+
+        try save()
+    }
+    
     // MARK: - CRUD
     
     func createCategory(
